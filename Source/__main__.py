@@ -1,4 +1,4 @@
-from Source import DirProccessor
+import DirProccessor
 import sys, getopt
 
 
@@ -63,7 +63,7 @@ def main():pass
 def testMenu():
     testIsDir = True
     defP = False
-    testReqs = {"sortBy" : DirProccessor.SortByWhat.SIZE,
+    testReqs = {"sortBy" : DirProccessor.SortByWhat.NAME,
 				"minSize" :  0,
 				"nameFilter" : "",
 				"typeFilter" : "",
@@ -82,9 +82,6 @@ def testMenu():
         resultData = defProcessor.process()
         displayTable(resultData)
 
-
-    data = DirProccessor.FileProc(testReqs).process()
-    displayTable(data)
 #######main
 testMenu()
 #if __name__ == '__main__':
