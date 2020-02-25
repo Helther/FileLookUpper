@@ -20,7 +20,7 @@ class ProcessorBase(object):
 
     def process(self): pass
 
-    def applyFilter(self,name,typo,size):
+    def applyFilter(self,name,size, typo = DefaultReqs["typeFilter"]):
         """
         checks if elem passes the filter on reqs
         :param name string
@@ -35,21 +35,30 @@ class ProcessorBase(object):
         if size < self.reqs["minSize"]:
             return False
         return True
-
+        #todo test
+        
     def Sort(self,elems):
         """
         sorts final list of elemts accoring to reqs
         :param elems: list of file or dirs info
         :return: sorted list
         """
-        ##sorting by elem of tuple with index = enum
-        elems.sort(key= lambda x:x[self.reqs["sortBy"]])
+        ##sorting by elem of tuple with index = enum.value
+        elems.sort(key= lambda x:x[self.reqs["sortBy"].value])
         return elems
 
 class DirProc(ProcessorBase):
     def __init__(self, reqs):
         super(DirProc,self).__init__(reqs)
 
+    def dirScan(self,Sum,Dir):
+        #todo add docs
+        for file in Dir.iterdir():
+            if file.is_dir():
+                self.dirScan(Sum,Dir / file.name)
+            else:
+                Sum[0]+=file.stat().st_size
+                
     def process(self):
         """
             проход черех все элементы в рут
@@ -60,14 +69,35 @@ class DirProc(ProcessorBase):
             когда прошел по всем рут дирам, сорт по sortBy(если ==1, то =0)
             вывод листа имен, размеров рут диров
         """
+        rootP = Path(self.reqs["rootDir"])
+        rootDirNames = []
+        for dir in rootP.iterdir():
+            if dir.is_dir():
+                rootDirNames.append(rootP / dir)
         data = []
-        # data.append((name,size))
+        for rootDir in rootDirNames:
+            Sum = [0]
+            self.dirScan(Sum,rootDir)
+            data.append((rootDir,Sum[0]))
+         
+        self.Sort(data)
         return data
 
 class FileProc(ProcessorBase):
     def __init__(self,reqs):
         super(FileProc,self).__init__(reqs)
 
+    def fileScan(self,data,Dir):
+        #todo add docs
+        for file in Dir.iterdir():
+            if file.is_dir():
+                self.fileScan(data,Dir / file.name)
+            else:
+                fileName = os.path.splitext(file.name)[0]
+                fileExt = os.path.splitext(file.name)[1]
+                if self.applyFilter(fileName,file.stat().st_size,fileExt):
+                    data.append((fileName,fileExt,file.stat().st_size))
+                    
     def process(self):
         """
             проход черех все элементы в рут
@@ -81,21 +111,13 @@ class FileProc(ProcessorBase):
         """
         data = []
         rootP = Path(self.reqs["rootDir"])
-        rootDirs = []
-        for file in rootP.iterdir():
-            if file.is_dir():
-                rootDirs.append(file.name)
-            else:
-                fileName = os.path.splitext(file.name)[0]
-                fileExt = os.path.splitext(file.name)[1]
-                if self.applyFilter(fileName,fileExt,file.stat().st_size):
-                    data.append([fileName,fileExt,file.stat().st_size])
-        print(data)
-        print(rootDirs)
+        self.fileScan(data,rootP)
+        
+
         # p = Path("D:\Dev\Py\FileLookUpper\\venv\Scripts\python.exe")
         # print(p.is_dir(), p.stat().st_size)
         #data_folder = Path("source_data/text_files/")
         #file_to_open = data_folder / "raw_data.txt"
 
-        #self.Sort(data)
+        self.Sort(data)
         return data
