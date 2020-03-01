@@ -1,5 +1,7 @@
 from Source import processor
-import sys, getopt
+import sys
+import argparse
+
 ##############################################
 #todo global
 """
@@ -30,48 +32,40 @@ def displayTable(data, maxColLength=10,maxTableSize=500):
 
 def parseArgs():
     #todo some docs
-    #todo replace getopt with argparse
-    shortArgs = "hds:m:n:t:r:"
-    longArgs = ["help","directory","sortBy","minSize","nameFilter","typeFilter","rootDir"]
-    helpInfo = """"""
-    try:
-        options, args = getopt.getopt(sys.argv[1:],shortArgs,[longArgs])
-    except getopt.GetoptError as err:
-        print(str(err))
-        print(helpInfo)
-        sys.exit(1)
+    #todo add help
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-d","--directory", action="store_true",help="process directories instead of files")
+    parser.add_argument("-s", "--sortBy", action="store",type=int,nargs=1,
+                        choices=list(range(0,processor.SortByWhat.MAX.value)),help="")
+    parser.add_argument("-m", "--minSize", action="store",type=int,nargs=1,
+                        help="")
+    parser.add_argument("-n", "--nameFilter", action="store",type=str,nargs=1,
+                        help="")
+    parser.add_argument("-t", "--typeFilter", action="store",type=str,nargs=1,
+                        help="")
+    parser.add_argument("-r", "--rootDir", action="store",type=str,nargs=1,
+                        help="")
+    args = parser.parse_args()
+    reqs = processor.DefaultReqs
     isDir = False
-    reqs = {}
-    for opt,arg in options:
-        if opt in ("-h","--help"):
-            #TODO add help
-            print(helpInfo)
-            sys.exit()
-        if opt in ("-d","--directory"):
-            isDir = True
-        if opt in ("-s","--sortBy"):
-            reqs["sortByName"] = arg
-            ##TODO add assert
-        else:
-            reqs["sortByName"] = processor.DefaultReqs["sortByName"]
-        if opt in ("-m","--minSize"):
-            reqs["minSize"] = arg
-        else:
-            reqs["minSize"] = processor.DefaultReqs["minSize"]
-        if opt in ("-n","--nameFilter"):
-            reqs["nameFilter"] = arg
-        else:
-            reqs["nameFilter"] = processor.DefaultReqs["nameFilter"]
-        if opt in ("-t","--typeFilter"):
-            reqs["typeFilter"] = arg
-        else:
-            reqs["typeFilter"] = processor.DefaultReqs["typeFilter"]
-        if opt in ("r","--rootDir"):
-            reqs["rootDir"] = arg
-        else:
-            reqs["rootDir"] = processor.DefaultReqs["rootDir"]
+
+    if args.directory:
+        isDir = True
+    if args.sortBy:
+        reqs["sortBy"] = args.sortBy[0]
+    if args.minSize:
+        reqs["minSize"] = args.minSize[0]
+        #parser.error("oops")
+        #todo add value check
+    if args.nameFilter:
+        reqs["nameFilter"] = args.nameFilter[0]
+    if args.typeFilter:
+        reqs["typeFilter"] = args.typeFilter[0]
+    if args.rootDir:
+        reqs["rootDir"] = args.rootDir[0]
+        # todo check path validity
+
     return reqs,isDir
-# todo check path validity
 
 def testMenu():
     testIsDir = True
@@ -97,6 +91,7 @@ def testMenu():
 
 
 def main(Argv):
+    parseArgs()
     testMenu()
 
 #######main

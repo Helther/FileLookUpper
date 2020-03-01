@@ -3,15 +3,16 @@ import pathlib
 import os.path
 
 class SortByWhat(Enum):
-	NAME = 0
-	TYPE = 1
-	SIZE = 2
+    NAME = 0
+    TYPE = 1
+    SIZE = 2
+    MAX = 3
 
 #table of arguments default values
 DefaultReqs = 	{"sortBy" : SortByWhat.SIZE,
-				"minSize" :  0,
-				"nameFilter" : "",
-				"typeFilter" : "",
+                "minSize" :  0,
+                "nameFilter" : "",
+                "typeFilter" : "",
                 "rootDir" : '.'}
 
 class ProcessorBase(object):
