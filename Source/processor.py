@@ -39,6 +39,10 @@ class ProcessorBase(object):
             return False
         return True
 
+    @staticmethod
+    def isPathValid(Path):
+        return os.path.exists(Path) and os.path.isdir(Path)
+
 class DirProc(ProcessorBase):
     def __init__(self, reqs):
         super(DirProc,self).__init__(reqs)
@@ -79,6 +83,7 @@ class DirProc(ProcessorBase):
                 data.append((rootDir,Sum[0]))
          
         data.sort(key= lambda x:x[self.reqs["sortBy"].value])
+        #todo by size descend
         return data
 
 class FileProc(ProcessorBase):
