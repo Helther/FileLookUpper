@@ -1,4 +1,4 @@
-from Source import processor
+import processor
 import sys
 import argparse
 
