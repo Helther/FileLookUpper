@@ -103,7 +103,7 @@ class FileProc(ProcessorBase):
                 self.fileScan(data,Dir / file.name)
             else:
                 fileName = os.path.splitext(file.name)[0]
-                fileExt = os.path.splitext(file.name)[1]
+                fileExt = os.path.splitext(file.name)[1][1:]
                 if self.applyFilter(fileName,file.stat().st_size,fileExt):
                     data.append((fileName,fileExt,file.stat().st_size))
                     

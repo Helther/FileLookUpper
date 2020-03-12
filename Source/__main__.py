@@ -18,16 +18,22 @@ def displayTable(data, maxColLength=10,maxTableSize=500):
     :param data: list of tuples
     :param maxTableSize:
     """
+    continChar = '...'
     tableSize = min(len(data),maxTableSize)
     row = 0
     while row < tableSize:
-        print('\n',row + 1, " ",end=' ')
+        print('\n',row + 1, ' '*(len(str(maxTableSize))-len(str(row+1))),end='')
         for col in data[row]:
+            isName = True
+            spareSpace = maxColLength - len(str(col))
             Str = str(col)[0:maxColLength]
-            print(Str,' '*(maxColLength-len(Str)),end=' ')
+            if isName and spareSpace < 0:
+                print("{}{} {}".format(Str, continChar, ' ' * max(0, spareSpace)), end='')
+            else:
+                print("{} {}".format(Str, ' ' * (max(0, spareSpace) + len(continChar))), end='')
+            isName = False
         row+=1
     #todo add column names
-    #todo add continuation if string longer than max
     #todo expand path
 
 def parseArgs():
