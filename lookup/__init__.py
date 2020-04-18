@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 ################
-#Copyright [2020] [Anton]
+#   Copyright [2020] [Anton]
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -15,20 +15,20 @@
 #   limitations under the License.
 ################
 
-from  lookup import processor
+from lookup import processor
 import sys
 import argparse
 
 ##############################################
-#todo global
+# todo global
 """
 get script run properly
-#add repo stcruct( license and readme)
+#add repo struct(readme)
 make public
 add tests"""
 ##########################
 
-def displayTable(data, maxColLength=10,maxTableSize=500):
+def displayTable(data, maxColLength = 10, maxTableSize = 500):
     """
     outputs to console processed list of data in table format
     :param maxColLength:
@@ -39,7 +39,7 @@ def displayTable(data, maxColLength=10,maxTableSize=500):
     tableSize = min(len(data),maxTableSize)
     row = 0
     while row < tableSize:
-        print('\n',row + 1, ' '*(len(str(maxTableSize))-len(str(row+1))),end='')
+        print('\n',row + 1, ' '*(len(str(maxTableSize))-len(str(row+1))), end='')
         for col in data[row]:
             isName = True
             spareSpace = maxColLength - len(str(col))
@@ -49,9 +49,10 @@ def displayTable(data, maxColLength=10,maxTableSize=500):
             else:
                 print("{} {}".format(Str, ' ' * (max(0, spareSpace) + len(continChar))), end='')
             isName = False
-        row+=1
-    #todo add column names
-    #todo expand path
+
+        row += 1
+    # todo add column names
+    # todo expand path
 
 def parseArgs():
     """
@@ -59,17 +60,17 @@ def parseArgs():
     :return: map of user defined params, bool
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument("-d","--directory", action="store_true",help="process directories instead of files")
-    parser.add_argument("-s", "--sortBy", action="store",type=int,nargs=1,
-                        choices=list(range(0,processor.SortByWhat.MAX.value)),
+    parser.add_argument("-d", "--directory", action="store_true", help="process directories instead of files")
+    parser.add_argument("-s", "--sortBy", action="store", type=int, nargs=1,
+                        choices=list(range(0, processor.SortByWhat.MAX.value)),
                         help="choose with which key to sort: 0 - NAME, 1 - TYPE, 2- SIZE. Default by size")
-    parser.add_argument("-m", "--minSize", action="store",type=int,nargs=1,
+    parser.add_argument("-m", "--minSize", action="store", type=int, nargs=1,
                         help="filter elements with size less than given argument. Zero by default")
-    parser.add_argument("-n", "--nameFilter", action="store",type=str,nargs=1,
+    parser.add_argument("-n", "--nameFilter", action="store", type=str, nargs=1,
                         help="given argument, filter whether element name contains it. Off by default")
-    parser.add_argument("-t", "--typeFilter", action="store",type=str,nargs=1,
+    parser.add_argument("-t", "--typeFilter", action="store", type=str, nargs=1,
                         help="given argument, filter whether element type contains it. Off by default")
-    parser.add_argument("-r", "--rootDir", action="store",type=str,nargs=1,
+    parser.add_argument("-r", "--rootDir", action="store", type=str, nargs=1,
                         help="specify root directory path. Working folder by default")
     args = parser.parse_args()
     reqs = processor.DefaultReqs
@@ -98,15 +99,15 @@ def parseArgs():
 def testMenu():
     testIsDir = True
     defP = False
-    testReqs = {"sortBy" : processor.SortByWhat.NAME,
-				"minSize" :  0,
-				"nameFilter" : "",
-				"typeFilter" : "",
-                "rootDir" : "."}
+    testReqs = {"sortBy": processor.SortByWhat.NAME,
+                "minSize":  0,
+                "nameFilter": "",
+                "typeFilter": "",
+                "rootDir": "."}
     if testIsDir:
         processorTest = processor.DirProc(testReqs)
         if defP:
-            defProcessor =  processorTest.DirProc(None)
+            defProcessor = processorTest.DirProc(None)
     else:
         processorTest = processor.FileProc(testReqs)
         if defP:
@@ -118,16 +119,16 @@ def testMenu():
         displayTable(resultData)
 
 
-def main(Argv):
-    reqs,isDir = parseArgs()
+def main():
+    reqs, isDir = parseArgs()
 
     looker = processor.FileProc(reqs)
     if isDir:
         looker = processor.DirProc(reqs)
     resultData = looker.process()
     displayTable(resultData)
-    #testMenu()
+    # testMenu()
 
-#######main
+################ main ##################
 if __name__ == '__main__':
-    main(sys.argv)
+    main()
