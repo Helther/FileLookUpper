@@ -28,6 +28,7 @@ make public
 add tests"""
 ##########################
 
+
 def displayTable(data, maxColLength = 10, maxTableSize = 500):
     """
     outputs to console processed list of data in table format
@@ -39,7 +40,7 @@ def displayTable(data, maxColLength = 10, maxTableSize = 500):
     tableSize = min(len(data),maxTableSize)
     row = 0
     while row < tableSize:
-        print('\n',row + 1, ' '*(len(str(maxTableSize))-len(str(row+1))), end='')
+        print('\n', row + 1, ' '*(len(str(maxTableSize))-len(str(row+1))), end='')
         for col in data[row]:
             isName = True
             spareSpace = maxColLength - len(str(col))
@@ -53,6 +54,7 @@ def displayTable(data, maxColLength = 10, maxTableSize = 500):
         row += 1
     # todo add column names
     # todo expand path
+
 
 def parseArgs():
     """
@@ -96,6 +98,7 @@ def parseArgs():
 
     return reqs,isDir
 
+
 def testMenu():
     testIsDir = True
     defP = False
@@ -128,6 +131,7 @@ def main():
     resultData = looker.process()
     displayTable(resultData)
     # testMenu()
+
 
 ################ main ##################
 if __name__ == '__main__':
