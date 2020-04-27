@@ -49,7 +49,7 @@ class ProcessorBase(object):
 
 
 class DirProc(ProcessorBase):
-    def __init__(self, reqs):
+    def __init__(self, reqs=None):
         super(DirProc, self).__init__(reqs)
 
     def dirScan(self, Sum, Dir):
@@ -93,7 +93,7 @@ class DirProc(ProcessorBase):
 
 
 class FileProc(ProcessorBase):
-    def __init__(self, reqs):
+    def __init__(self, reqs=None):
         super(FileProc, self).__init__(reqs)
 
     def fileScan(self, data, Dir):
