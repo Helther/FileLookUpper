@@ -18,14 +18,12 @@ filterPairs = {((0, "", ""), (0, "", "")): True,
                ((0, "", "tx"), (0, "", "txt")): True
                }
 
-
 # list of all test dirNames and its sizes
 testDirRes = []
 # list of all test FileNames, exts and its sizes
 testFileRes = []
 
 # init testData folder
-
 if not os.path.exists(testDataDir):
     os.mkdir(testDataDir)
 
