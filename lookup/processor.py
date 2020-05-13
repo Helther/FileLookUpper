@@ -43,6 +43,7 @@ class ProcessorBase(object):
             return False
         return True
 
+
     @staticmethod
     def isPathValid(Path):
         return os.path.exists(Path) and os.path.isdir(Path)
@@ -77,7 +78,7 @@ class DirProc(ProcessorBase):
         rootDirNames = []
         for Dir in rootP.iterdir():
             if Dir.is_dir():
-                rootDirNames.append(rootP / Dir)
+                rootDirNames.append(Dir)
         data = []
         for rootDir in rootDirNames:
             if not self.applyFilter(Name=rootDir.name):
@@ -85,10 +86,14 @@ class DirProc(ProcessorBase):
             Sum = [0]
             self.dirScan(Sum, rootDir)
             if self.applyFilter(Size=Sum[0]):
-                data.append((rootDir, Sum[0]))
+                data.append((str(rootDir), Sum[0]))
 
-        data.sort(key=lambda x: x[self.reqs["sortBy"].value])
-        # todo by size descend
+        sortKey = self.reqs["sortBy"].value
+        reverseOrder = False
+        if sortKey == SortByWhat.SIZE.value:  # todo ugly
+            sortKey -= 1
+            reverseOrder = True
+        data.sort(key=lambda x: x[sortKey], reverse=reverseOrder)
         return data
 
 
@@ -123,5 +128,9 @@ class FileProc(ProcessorBase):
         rootP = pathlib.Path(self.reqs["rootDir"])
         self.fileScan(data, rootP)
 
-        data.sort(key=lambda x: x[self.reqs["sortBy"].value])
+        sortKey = self.reqs["sortBy"].value
+        reverseOrder = False
+        if sortKey == SortByWhat.SIZE.value:  # todo ugly
+            reverseOrder = True
+        data.sort(key=lambda x: x[sortKey], reverse=reverseOrder)
         return data

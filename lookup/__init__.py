@@ -65,7 +65,7 @@ def parseArgs():
     parser.add_argument("-d", "--directory", action="store_true", help="process directories instead of files")
     parser.add_argument("-s", "--sortBy", action="store", type=int, nargs=1,
                         choices=list(range(0, processor.SortByWhat.MAX.value)),
-                        help="choose with which key to sort: 0 - NAME, 1 - TYPE, 2- SIZE. Default by size")
+                        help="choose with which key to sort: 0 - NAME, 1 - TYPE, 2 - SIZE. Default by size")
     parser.add_argument("-m", "--minSize", action="store", type=int, nargs=1,
                         help="filter elements with size less than given argument. Zero by default")
     parser.add_argument("-n", "--nameFilter", action="store", type=str, nargs=1,

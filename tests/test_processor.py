@@ -1,11 +1,13 @@
 from unittest import TestCase, TestResult
 import os
+from shutil import rmtree
 import pathlib
 from lookup.processor import ProcessorBase, DirProc, FileProc, SortByWhat, \
     DefaultReqs
 
 # static consts for setup
-testDataDir = DefaultReqs["rootDir"] + "/testData"
+testDirName = "testData"
+testDataDir = DefaultReqs["rootDir"] + "/" + testDirName
 testDir = testDataDir + "/pathValidityTest"
 filterPairs = {((0, "", ""), (0, "", "")): True,
                ((0, "", ""), (1, "name", "txt")): True,
@@ -18,37 +20,43 @@ filterPairs = {((0, "", ""), (0, "", "")): True,
                ((0, "", "tx"), (0, "", "txt")): True
                }
 
-# list of all test dirNames and its sizes
-testDirRes = []
-# list of all test FileNames, exts and its sizes
-testFileRes = []
-
-# init testData folder
-if not os.path.exists(testDataDir):
-    os.mkdir(testDataDir)
-
 
 def setDirStruct(dirData=None, fileData=None):  # would be bad if out of memory
     # set up dir/file Scan and testRes
+
     fileName = "tFile_"
     fileExt = "tst"
-    for i in range(1, 4):
-        f = open(f"{testDataDir}/{fileName}{i}.{fileExt}", "wb")
-        f.seek(1024*i-1)
-        f.write(b"\0")
-        f.close()
-        if dirData is not None:
-            dirData[0] += 1024*i
-        if fileData is not None:
-            fileData.append((f"{fileName}{i}", fileExt, 1024*i))
-
-
-def unSetDirStruct(): pass
+    dirNumber = 4
+    fileNumber = 4
+    dirList = [testDataDir]
+    for i in range(1, dirNumber):
+        dirList.append(f"{testDataDir}/tDir{i}")
+    for d in range(len(dirList)):
+        dirSize = 0
+        if dirList[d] != testDataDir:
+            os.mkdir(dirList[d])
+        for i in range(1, fileNumber):
+            f = open(f"{dirList[d]}/{fileName}{i+d}.{fileExt}", "wb")
+            f.seek(1024*(i+d)-1)
+            f.write(b"\0")
+            f.close()
+            if dirData is not None:
+                dirData[0][0] += 1024*(i+d)
+                if dirList[d] != testDataDir:
+                    dirSize += 1024*(i+d)
+            if fileData is not None:
+                if dirList[d] == testDataDir:
+                    fileData[0].append((f"{fileName}{i+d}", fileExt, 1024*i))
+                fileData[1].append((f"{fileName}{i+d}", fileExt, 1024*(i+d)))
+        if dirData is not None and dirList[d] != testDataDir:
+            dirData[1].append((dirList[d].replace(DefaultReqs["rootDir"] +
+                                                  "/", ''), dirSize))
 
 
 class TestProcessorBase(TestCase):
 
     def setUp(self) -> None:
+        os.mkdir(testDataDir)
         os.mkdir(testDir)
 
     def test_is_path_valid(self):
@@ -72,17 +80,22 @@ class TestProcessorBase(TestCase):
                 print("test_apply_filter: fail at case {} == {}".format(k, v))
                 raise AssertionError
 
-    def tearDown(self) -> None:  # Todo
-        os.rmdir(testDir)
+    def tearDown(self) -> None:
+        rmtree(testDataDir)
 
 
 class TestDirProc(TestCase):
 
     def setUp(self) -> None:
+        # init testData folder
+        if not os.path.exists(testDataDir):
+            os.mkdir(testDataDir)
         # sum of file sizes in dir Scan
         self.dirScanExpectedSum = [0]
+        # list of all test dirNames and its sizes
+        self.testDirRes = []
         # dir scan init
-        setDirStruct(dirData=self.dirScanExpectedSum)
+        setDirStruct(dirData=[self.dirScanExpectedSum, self.testDirRes])
 
     def test_dir_scan(self):
         testSum = [0]
@@ -90,21 +103,33 @@ class TestDirProc(TestCase):
         proc.dirScan(testSum, pathlib.Path(testDataDir))
         self.assertEqual(self.dirScanExpectedSum[0], testSum[0])
 
-    def test_process(self):  # Todo
-        proc = DirProc()
-        self.assertEqual(testDirRes, proc.process())
+    def test_process(self):
+        reqs = DefaultReqs
+        reqs["rootDir"] = testDataDir + '/'
+        sorts = [SortByWhat.NAME, SortByWhat.SIZE]
+        for i in range(len(sorts)):
+            reqs["sortBy"] = sorts[i]
+            proc = DirProc(reqs)
+            testData = proc.process()
+            self.testDirRes.sort(key=lambda x: x[i], reverse=i)
+            self.assertEqual(testData, self.testDirRes)
 
-    def tearDown(self) -> None:  # Todo
-        unSetDirStruct()
+    def tearDown(self) -> None:
+        rmtree(testDataDir)
 
 
 class TestFileProc(TestCase):
 
     def setUp(self) -> None:
+        # init testData folder
+        if not os.path.exists(testDataDir):
+            os.mkdir(testDataDir)
         # expected ist of all file names, exts, sizes
         self.fileScanRes = []
+        # list of all test FileNames, exts and its sizes
+        self.testFileRes = []
         # dir scan init
-        setDirStruct(fileData=self.fileScanRes)
+        setDirStruct(fileData=[self.fileScanRes, self.testFileRes])
 
     def test_file_scan(self):
         testData = []
@@ -112,9 +137,19 @@ class TestFileProc(TestCase):
         proc.fileScan(testData, pathlib.Path(testDataDir))
         self.assertEqual(testData, self.fileScanRes)
 
-    def test_process(self):  # Todo
-        proc = FileProc()
-        self.assertEqual(testFileRes, proc.process())
+    def test_process(self):  # Todo fix assert something in proccessor
+        reqs = DefaultReqs
+        reqs["rootDir"] = testDataDir + '/'
+        sorts = [SortByWhat.NAME, SortByWhat.TYPE, SortByWhat.SIZE]
+        for i in range(len(sorts)):
+            reqs["sortBy"] = sorts[i]
+            proc = FileProc(reqs)
+            testData = proc.process()
+            reverse = False
+            if sorts[i] == SortByWhat.SIZE:
+                reverse = True
+            self.testFileRes.sort(key=lambda x: x[i], reverse=reverse)
+            self.assertEqual(testData, self.testFileRes)
 
-    def tearDown(self) -> None:  # Todo
-        unSetDirStruct()
+    def tearDown(self) -> None:
+        rmtree(testDataDir)
