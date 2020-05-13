@@ -25,7 +25,7 @@ import argparse
 get script run properly
 #add repo struct(readme)
 make public
-add tests"""
+"""
 ##########################
 
 

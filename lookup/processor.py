@@ -43,7 +43,6 @@ class ProcessorBase(object):
             return False
         return True
 
-
     @staticmethod
     def isPathValid(Path):
         return os.path.exists(Path) and os.path.isdir(Path)
@@ -87,7 +86,7 @@ class DirProc(ProcessorBase):
             self.dirScan(Sum, rootDir)
             if self.applyFilter(Size=Sum[0]):
                 data.append((str(rootDir), Sum[0]))
-
+# todo: reformat this sorting and make custom predicats
         sortKey = self.reqs["sortBy"].value
         reverseOrder = False
         if sortKey == SortByWhat.SIZE.value:  # todo ugly
