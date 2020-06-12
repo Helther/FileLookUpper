@@ -15,7 +15,8 @@ DefaultReqs = {"sortBy": SortByWhat.SIZE,
                "minSize": 0,
                "nameFilter": "",
                "typeFilter": "",
-               "rootDir": '.'}
+               "rootDir": '.',
+               "maxElemNumber": 100}
 
 
 class ProcessorBase(object):

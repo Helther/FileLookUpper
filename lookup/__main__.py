@@ -22,14 +22,12 @@ import argparse
 ##############################################
 # todo global
 """
-get script run properly
-#add repo struct(readme)
 make public
 """
 ##########################
 
 
-def displayTable(data, maxColLength = 10, maxTableSize = 500):
+def displayTable(data, maxColLength = 10, maxTableSize = 100):
     """
     outputs to console processed list of data in table format
     :param maxColLength:
@@ -37,23 +35,40 @@ def displayTable(data, maxColLength = 10, maxTableSize = 500):
     :param maxTableSize:
     """
     continChar = '...'
-    tableSize = min(len(data),maxTableSize)
+    tableSize = min(len(data), maxTableSize)
     row = 0
+    fileColumnNumber = 3
+    dirColumnNumber = 2
+    colNameNum = "№"
+    colNameName = "Name"
+    colNameType = "Type"
+    colNameSize = "Size in bytes"
+    if len(data[row]) == dirColumnNumber:
+        print('\n', colNameNum, ' ' * (len(str(maxTableSize)) -
+              len(colNameNum) - 1), colNameName, ' ' * (maxColLength -
+              len(colNameName) + 2), colNameSize, end='')
+    if len(data[row]) == fileColumnNumber:
+        print('\n', colNameNum, ' ' * (len(str(maxTableSize)) -
+              len(colNameNum) - 1), colNameName, ' ' * (maxColLength -
+              len(colNameName) + 2), colNameType, ' ' * (maxColLength
+              - len(colNameType) + 2), colNameSize, end='')
     while row < tableSize:
-        print('\n', row + 1, ' '*(len(str(maxTableSize))-len(str(row+1))), end='')
+        print('\n', row + 1, ' ' * (len(str(maxTableSize)) -
+                                    len(str(row+1))), end='')
+        isName = True
         for col in data[row]:
-            isName = True
             spareSpace = maxColLength - len(str(col))
             Str = str(col)[0:maxColLength]
             if isName and spareSpace < 0:
-                print("{}{} {}".format(Str, continChar, ' ' * max(0, spareSpace)), end='')
+                print("{}{} {}".format(Str, continChar, ' ' *
+                                       max(0, spareSpace)), end='')
             else:
-                print("{} {}".format(Str, ' ' * (max(0, spareSpace) + len(continChar))), end='')
+                print("{} {}".format(Str, ' ' * (max(0, spareSpace) +
+                                                 len(continChar))), end='')
             isName = False
-
         row += 1
-    # todo add column names
     # todo expand path
+    # todo limit proccer work to table size by adding elemCount check in proc
 
 
 def parseArgs():
@@ -62,18 +77,27 @@ def parseArgs():
     :return: map of user defined params, bool
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument("-d", "--directory", action="store_true", help="process directories instead of files")
+    parser.add_argument("-d", "--directory", action="store_true",
+                        help="process directories instead of files")
     parser.add_argument("-s", "--sortBy", action="store", type=int, nargs=1,
                         choices=list(range(0, processor.SortByWhat.MAX.value)),
-                        help="choose with which key to sort: 0 - NAME, 1 - TYPE, 2 - SIZE. Default by size")
+                        help="choose with which key to sort:"
+                             " 0 - NAME, 1 - TYPE, 2 - SIZE. Default by size")
     parser.add_argument("-m", "--minSize", action="store", type=int, nargs=1,
-                        help="filter elements with size less than given argument. Zero by default")
+                        help="filter elements with size less than given"
+                             " argument. Zero by default")
     parser.add_argument("-n", "--nameFilter", action="store", type=str, nargs=1,
-                        help="given argument, filter whether element name contains it. Off by default")
+                        help="given argument, filter whether element name"
+                             " contains it. Off by default")
     parser.add_argument("-t", "--typeFilter", action="store", type=str, nargs=1,
-                        help="given argument, filter whether element type contains it. Off by default")
+                        help="given argument, filter whether element type"
+                             " contains it. Off by default")
     parser.add_argument("-r", "--rootDir", action="store", type=str, nargs=1,
-                        help="specify root directory path. Working folder by default")
+                        help="specify root directory path. Working folder"
+                             " by default")
+    parser.add_argument("-e", "--elemMaxNumber", action="store", type=int,
+                        nargs=1,
+                        help="choose a max number of elements to display")
     args = parser.parse_args()
     reqs = processor.DefaultReqs
     isDir = False
@@ -95,43 +119,21 @@ def parseArgs():
         if not processor.ProcessorBase.isPathValid(root):
             parser.error(f" {root} is not valid path")
         reqs["rootDir"] = root
-
-    return reqs,isDir
-
-
-def testMenu():
-    testIsDir = True
-    defP = False
-    testReqs = {"sortBy": processor.SortByWhat.NAME,
-                "minSize":  0,
-                "nameFilter": "",
-                "typeFilter": "",
-                "rootDir": "."}
-    if testIsDir:
-        processorTest = processor.DirProc(testReqs)
-        if defP:
-            defProcessor = processorTest.DirProc(None)
-    else:
-        processorTest = processor.FileProc(testReqs)
-        if defP:
-            defProcessor = processorTest.FileProc(None)
-    resultData = processorTest.process()
-    displayTable(resultData)
-    if defP:
-        resultData = defProcessor.process()
-        displayTable(resultData)
+    if args.elemMaxNumber:
+        if args.elemMaxNumber[0] <= 0:
+            parser.error("not valid argument value: e > 0")
+        reqs["maxElemNumber"] = args.elemMaxNumber[0]
+    return reqs, isDir
 
 
 def main():
     reqs, isDir = parseArgs()
-
-    looker = processor.FileProc(reqs)
     if isDir:
         looker = processor.DirProc(reqs)
+    else:
+        looker = processor.FileProc(reqs)
     resultData = looker.process()
-    displayTable(resultData)
-    # testMenu()
-
+    displayTable(resultData, maxTableSize=reqs["maxElemNumber"])
 
 ################ main ##################
 if __name__ == '__main__':

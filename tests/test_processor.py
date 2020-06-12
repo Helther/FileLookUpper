@@ -6,8 +6,7 @@ from lookup.processor import ProcessorBase, DirProc, FileProc, SortByWhat, \
     DefaultReqs
 
 # static consts for setup
-testDirName = "testData"
-testDataDir = DefaultReqs["rootDir"] + "/" + testDirName
+testDataDir = "testData"
 testDir = testDataDir + "/pathValidityTest"
 filterPairs = {((0, "", ""), (0, "", "")): True,
                ((0, "", ""), (1, "name", "txt")): True,
@@ -21,6 +20,8 @@ filterPairs = {((0, "", ""), (0, "", "")): True,
                }
 
 
+# todo add finally for testdata clean up
+# todo fix pathlib pathes for cross platform
 def setDirStruct(dirData=None, fileData=None):  # would be bad if out of memory
     # set up dir/file Scan and testRes
 
@@ -30,7 +31,7 @@ def setDirStruct(dirData=None, fileData=None):  # would be bad if out of memory
     fileNumber = 4
     dirList = [testDataDir]
     for i in range(1, dirNumber):
-        dirList.append(f"{testDataDir}/tDir{i}")
+        dirList.append(str(pathlib.Path(f"{testDataDir}/tDir{i}")))
     for d in range(len(dirList)):
         dirSize = 0
         if dirList[d] != testDataDir:
@@ -47,8 +48,7 @@ def setDirStruct(dirData=None, fileData=None):  # would be bad if out of memory
             if fileData is not None:
                 fileData.append((f"{fileName}{i+d}", f"{fileExt}{i+d}", 1024*(i+d)))
         if dirData is not None and dirList[d] != testDataDir:
-            dirData[1].append((dirList[d].replace(DefaultReqs["rootDir"] +
-                                                  "/", ''), dirSize))
+            dirData[1].append((dirList[d], dirSize))
 
 
 class TestProcessorBase(TestCase):
@@ -103,7 +103,7 @@ class TestDirProc(TestCase):
 
     def test_process(self):
         reqs = DefaultReqs
-        reqs["rootDir"] = testDataDir + '/'
+        reqs["rootDir"] = testDataDir
         sorts = [SortByWhat.NAME, SortByWhat.SIZE]
         for i in range(len(sorts)):
             reqs["sortBy"] = sorts[i]
@@ -130,7 +130,7 @@ class TestFileProc(TestCase):
 # todo: having troubles with sort when text elems are equal or have symbols
     def test_process(self):
         reqs = DefaultReqs
-        reqs["rootDir"] = testDataDir + '/'
+        reqs["rootDir"] = testDataDir
         sorts = [SortByWhat.NAME, SortByWhat.TYPE, SortByWhat.SIZE]
         for i in range(len(sorts)):
             reqs["sortBy"] = sorts[i]

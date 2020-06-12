@@ -7,7 +7,7 @@ What it basically does is looks up directory sub structure of a given folder.
 For now it simply outputs information about directory stucture in a table form according to provided options like filters and sort rules.
 ## Getting Started
 
-It is supposed to run as a script inside a "lookup" package by providing it arguments like root path and processing options.
+It is supposed to run as a script "lookup" from command line by providing it arguments like root path and processing options.
 
 ## Prerequisites
 
@@ -15,12 +15,15 @@ All you need to run it is standard python3 ( i personally used python3.6)
 
 ## Installing
 
-No special installation procedures are needed at this point. Just run from source.
+install via pip from source
+
+```
+pip install -e "%pathToProject%"
+```
 
 ## Usage
-from project directory
 ```
-python -m lookup.__init__ [args]
+python -m lookup [args]
 ```
 
 ## Running the tests
