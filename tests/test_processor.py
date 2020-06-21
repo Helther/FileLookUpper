@@ -20,8 +20,6 @@ filterPairs = {((0, "", ""), (0, "", "")): True,
                }
 
 
-# todo add finally for testdata clean up
-# todo fix pathlib pathes for cross platform
 def setDirStruct(dirData=None, fileData=None):  # would be bad if out of memory
     # set up dir/file Scan and testRes
 
@@ -37,16 +35,18 @@ def setDirStruct(dirData=None, fileData=None):  # would be bad if out of memory
         if dirList[d] != testDataDir:
             os.mkdir(dirList[d])
         for i in range(1, fileNumber):
-            f = open(f"{dirList[d]}/{fileName}{i+d}.{fileExt}{i+d}", "wb")
-            f.seek(1024*(i+d)-1)
-            f.write(b"\0")
-            f.close()
+            with open(str(pathlib.Path(f"{dirList[d]}/{fileName}{i+d}.{fileExt}"
+                                       f"{i+d}")), "wb") as f:
+                f.seek(1024*(i+d)-1)
+                f.write(b"\0")
+                f.close()
             if dirData is not None:
                 dirData[0][0] += 1024*(i+d)
                 if dirList[d] != testDataDir:
                     dirSize += 1024*(i+d)
             if fileData is not None:
-                fileData.append((f"{fileName}{i+d}", f"{fileExt}{i+d}", 1024*(i+d)))
+                fileData.append((f"{fileName}{i+d}", f"{fileExt}{i+d}",
+                                 1024*(i+d)))
         if dirData is not None and dirList[d] != testDataDir:
             dirData[1].append((dirList[d], dirSize))
 
@@ -54,21 +54,21 @@ def setDirStruct(dirData=None, fileData=None):  # would be bad if out of memory
 class TestProcessorBase(TestCase):
 
     def setUp(self) -> None:
-        os.mkdir(testDataDir)
-        os.mkdir(testDir)
+        os.mkdir(pathlib.Path(testDataDir))
+        os.mkdir(pathlib.Path(testDir))
 
     def test_is_path_valid(self):
-        self.assertTrue(ProcessorBase.isPathValid(testDir))
+        self.assertTrue(ProcessorBase.isPathValid(pathlib.Path(testDir)))
 
     # todo: figure out how to report errors in big tests
     def test_apply_filter(self):
         for k, v in filterPairs.items():
             try:
-                reqs = {"sortBy": SortByWhat.SIZE,
-                        "rootDir": '.',
-                        "minSize": k[0][0],
-                        "nameFilter": k[0][1],
-                        "typeFilter": k[0][2]}
+                reqs = DefaultReqs
+                reqs["minSize"] = k[0][0]
+                reqs["nameFilter"] = k[0][1]
+                reqs["typeFilter"] = k[0][2]
+
                 testObject = ProcessorBase(reqs)
                 self.assertEqual(testObject.applyFilter(
                     Name=k[1][1],
@@ -104,12 +104,13 @@ class TestDirProc(TestCase):
     def test_process(self):
         reqs = DefaultReqs
         reqs["rootDir"] = testDataDir
+        reqs["maxElemNumber"] = len(self.testDirRes)
         sorts = [SortByWhat.NAME, SortByWhat.SIZE]
         for i in range(len(sorts)):
             reqs["sortBy"] = sorts[i]
             proc = DirProc(reqs)
             testData = proc.process()
-            self.testDirRes.sort(key=lambda x: x[i], reverse=i)
+            self.testDirRes.sort(key=lambda x: x[i], reverse=bool(i))
             self.assertEqual(testData, self.testDirRes)
 
     def tearDown(self) -> None:
@@ -131,6 +132,7 @@ class TestFileProc(TestCase):
     def test_process(self):
         reqs = DefaultReqs
         reqs["rootDir"] = testDataDir
+        reqs["maxElemNumber"] = len(self.testFileRes)
         sorts = [SortByWhat.NAME, SortByWhat.TYPE, SortByWhat.SIZE]
         for i in range(len(sorts)):
             reqs["sortBy"] = sorts[i]

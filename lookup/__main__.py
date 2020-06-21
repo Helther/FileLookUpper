@@ -27,7 +27,7 @@ make public
 ##########################
 
 
-def displayTable(data, maxColLength = 10, maxTableSize = 100):
+def displayTable(data, maxColLength=60, maxTableSize=100):
     """
     outputs to console processed list of data in table format
     :param maxColLength:
@@ -42,7 +42,7 @@ def displayTable(data, maxColLength = 10, maxTableSize = 100):
     colNameNum = "№"
     colNameName = "Name"
     colNameType = "Type"
-    colNameSize = "Size in bytes"
+    colNameSize = "Size in Mbytes"
     if len(data[row]) == dirColumnNumber:
         print('\n', colNameNum, ' ' * (len(str(maxTableSize)) -
               len(colNameNum) - 1), colNameName, ' ' * (maxColLength -
@@ -56,19 +56,23 @@ def displayTable(data, maxColLength = 10, maxTableSize = 100):
         print('\n', row + 1, ' ' * (len(str(maxTableSize)) -
                                     len(str(row+1))), end='')
         isName = True
-        for col in data[row]:
-            spareSpace = maxColLength - len(str(col))
-            Str = str(col)[0:maxColLength]
+        for col in range(0, len(data[row])):
+            spareSpace = maxColLength - len(str(data[row][col]))
+            if col == len(data[row]) - 1:
+                Str = str(int(data[row][col] / (10 ** 6)))
+            else:
+                Str = str(data[row][col])[-maxColLength:]
             if isName and spareSpace < 0:
-                print("{}{} {}".format(Str, continChar, ' ' *
+                print("{}{} {}".format(continChar, Str, ' ' *
                                        max(0, spareSpace)), end='')
             else:
                 print("{} {}".format(Str, ' ' * (max(0, spareSpace) +
                                                  len(continChar))), end='')
             isName = False
         row += 1
-    # todo expand path
-    # todo limit proccer work to table size by adding elemCount check in proc
+    # todo expand path by hiding parent folders as "../"
+    #  from a certain depth(length)
+    # todo way to set size scale
 
 
 def parseArgs():
@@ -135,6 +139,6 @@ def main():
     resultData = looker.process()
     displayTable(resultData, maxTableSize=reqs["maxElemNumber"])
 
-################ main ##################
+
 if __name__ == '__main__':
     main()

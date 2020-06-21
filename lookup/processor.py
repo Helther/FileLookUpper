@@ -36,9 +36,11 @@ class ProcessorBase(object):
         :param Size int
         :return: bool
         """
-        if Name != DefaultReqs["nameFilter"] and self.reqs["nameFilter"] not in Name:
+        if Name != DefaultReqs["nameFilter"] and self.reqs["nameFilter"] \
+                not in Name:
             return False
-        if Type != DefaultReqs["typeFilter"] and self.reqs["typeFilter"] not in Type:
+        if Type != DefaultReqs["typeFilter"] and self.reqs["typeFilter"] \
+                not in Type:
             return False
         if Size < self.reqs["minSize"]:
             return False
@@ -76,9 +78,14 @@ class DirProc(ProcessorBase):
         """
         rootP = pathlib.Path(self.reqs["rootDir"])
         rootDirNames = []
+        rootDirNum = 0
         for Dir in rootP.iterdir():
+
             if Dir.is_dir():
                 rootDirNames.append(Dir)
+                rootDirNum += 1
+                if rootDirNum >= self.reqs["maxElemNumber"]:
+                    break
         data = []
         for rootDir in rootDirNames:
             if not self.applyFilter(Name=rootDir.name):
@@ -87,7 +94,7 @@ class DirProc(ProcessorBase):
             self.dirScan(Sum, rootDir)
             if self.applyFilter(Size=Sum[0]):
                 data.append((str(rootDir), Sum[0]))
-# todo: reformat this sorting and make custom predicats
+        # todo: reformat this sorting and make custom predicats
         sortKey = self.reqs["sortBy"].value
         reverseOrder = False
         if sortKey == SortByWhat.SIZE.value:  # todo ugly
@@ -100,15 +107,17 @@ class DirProc(ProcessorBase):
 class FileProc(ProcessorBase):
     def __init__(self, reqs=None):
         super(FileProc, self).__init__(reqs)
+        self.currentElemNumber = 0
 
     def fileScan(self, data, Dir):
         """
         goes through all elements in a given Directory
-        and adds them to a return list after appliyng filter
+        and adds them to a return list after applying filter
         :param data: list<string,string,int>
         :param Dir: Path object
         :return: None
         """
+
         for file in Dir.iterdir():
             if file.is_dir():
                 self.fileScan(data, Dir / file.name)
@@ -116,7 +125,10 @@ class FileProc(ProcessorBase):
                 fileName = os.path.splitext(file.name)[0]
                 fileExt = os.path.splitext(file.name)[1][1:]
                 if self.applyFilter(fileName, file.stat().st_size, fileExt):
+                    if self.currentElemNumber >= self.reqs["maxElemNumber"]:
+                        break
                     data.append((fileName, fileExt, file.stat().st_size))
+                    self.currentElemNumber += 1
 
     def process(self):
         """
