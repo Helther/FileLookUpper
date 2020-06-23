@@ -107,7 +107,7 @@ class TestDirProc(TestCase):
         reqs["maxElemNumber"] = len(self.testDirRes)
         sorts = [SortByWhat.NAME, SortByWhat.SIZE]
         for i in range(len(sorts)):
-            reqs["sortBy"] = sorts[i]
+            reqs["sortBy"] = sorts[i].value
             proc = DirProc(reqs)
             testData = proc.process()
             self.testDirRes.sort(key=lambda x: x[i], reverse=bool(i))
@@ -135,7 +135,7 @@ class TestFileProc(TestCase):
         reqs["maxElemNumber"] = len(self.testFileRes)
         sorts = [SortByWhat.NAME, SortByWhat.TYPE, SortByWhat.SIZE]
         for i in range(len(sorts)):
-            reqs["sortBy"] = sorts[i]
+            reqs["sortBy"] = sorts[i].value
             proc = FileProc(reqs)
             testData = proc.process()
             reverse = False
