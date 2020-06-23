@@ -11,7 +11,7 @@ class SortByWhat(Enum):
 
 
 # table of arguments default values
-DefaultReqs = {"sortBy": SortByWhat.SIZE,
+DefaultReqs = {"sortBy": SortByWhat.SIZE.value,
                "minSize": 0,
                "nameFilter": "",
                "typeFilter": "",
@@ -95,7 +95,7 @@ class DirProc(ProcessorBase):
             if self.applyFilter(Size=Sum[0]):
                 data.append((str(rootDir), Sum[0]))
         # todo: reformat this sorting and make custom predicats
-        sortKey = self.reqs["sortBy"].value
+        sortKey = int(self.reqs["sortBy"])
         reverseOrder = False
         if sortKey == SortByWhat.SIZE.value:  # todo ugly
             sortKey -= 1
@@ -140,7 +140,7 @@ class FileProc(ProcessorBase):
         rootP = pathlib.Path(self.reqs["rootDir"])
         self.fileScan(data, rootP)
 
-        sortKey = self.reqs["sortBy"].value
+        sortKey = int(self.reqs["sortBy"])
         reverseOrder = False
         if sortKey == SortByWhat.SIZE.value:  # todo ugly
             reverseOrder = True
