@@ -16,15 +16,7 @@
 ################
 
 from lookup import processor
-import sys
 import argparse
-
-##############################################
-# todo global
-"""
-make public
-"""
-##########################
 
 
 def displayTable(data, maxColLength=60, maxTableSize=100):
@@ -34,6 +26,9 @@ def displayTable(data, maxColLength=60, maxTableSize=100):
     :param data: list of tuples
     :param maxTableSize:
     """
+    if len(data) == 0:
+        print("No elements were found")
+        return
     continChar = '...'
     tableSize = min(len(data), maxTableSize)
     row = 0
@@ -72,7 +67,7 @@ def displayTable(data, maxColLength=60, maxTableSize=100):
         row += 1
     # todo expand path by hiding parent folders as "../"
     #  from a certain depth(length)
-    # todo way to set size scale
+    # todo way to set col size scale
 
 
 def parseArgs():
@@ -81,21 +76,24 @@ def parseArgs():
     :return: map of user defined params, bool
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument("-d", "--directory", action="store_true",
-                        help="process directories instead of files")
+    parser.prog = "lookup"
+    exclusiveGroup = parser.add_mutually_exclusive_group()
+    exclusiveGroup.add_argument("-d", "--directory", action="store_true",
+                                help="process directories instead of files")
+    exclusiveGroup.add_argument("-t", "--typeFilter", action="store", type=str,
+                                nargs=1, help="given argument, filter whether "
+                                "element type contains it. Off by default")
     parser.add_argument("-s", "--sortBy", action="store", type=int, nargs=1,
                         choices=list(range(0, processor.SortByWhat.MAX.value)),
                         help="choose with which key to sort:"
                              " 0 - NAME, 1 - TYPE, 2 - SIZE. Default by size")
     parser.add_argument("-m", "--minSize", action="store", type=int, nargs=1,
                         help="filter elements with size less than given"
-                             " argument. Zero by default")
+                             " argument (in bytes). Zero by default")
     parser.add_argument("-n", "--nameFilter", action="store", type=str, nargs=1,
                         help="given argument, filter whether element name"
                              " contains it. Off by default")
-    parser.add_argument("-t", "--typeFilter", action="store", type=str, nargs=1,
-                        help="given argument, filter whether element type"
-                             " contains it. Off by default")
+
     parser.add_argument("-r", "--rootDir", action="store", type=str, nargs=1,
                         help="specify root directory path. Working folder"
                              " by default")
