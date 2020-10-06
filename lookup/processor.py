@@ -2,6 +2,13 @@ from enum import Enum
 import pathlib
 import os.path
 
+# todo global
+#  fix maxElemNum filter to go through all elems and then to slice
+#  the result
+#  fix issue with root argument when passing path with whitespaces
+#  fix minSize issue for small vals
+#  fix type filter for files w/o ext
+
 
 class SortByWhat(Enum):
     NAME = 0
@@ -10,9 +17,26 @@ class SortByWhat(Enum):
     MAX = 3
 
 
+class sizeScales(Enum):
+    B = 0
+    KB = 1
+    MB = 2
+    MAX = 3
+
+
+sizeScalesVals = {sizeScales.B.value: 1,
+                  sizeScales.KB.value: 10 ** 3,
+                  sizeScales.MB.value: 10 ** 6}
+
+
+sizeScaleNames = {sizeScales.B.value: "Bytes",
+                  sizeScales.KB.value: "KBytes",
+                  sizeScales.MB.value: "MBytes"}
+
 # table of arguments default values
 DefaultReqs = {"sortBy": SortByWhat.SIZE.value,
                "minSize": 0,
+               "sizeScale": sizeScales.MB.value,
                "nameFilter": "",
                "typeFilter": "",
                "rootDir": '.',
@@ -42,7 +66,7 @@ class ProcessorBase(object):
         if Type != DefaultReqs["typeFilter"] and self.reqs["typeFilter"] \
                 not in Type:
             return False
-        if Size < self.reqs["minSize"]:
+        if Size != DefaultReqs["minSize"] and Size < self.reqs["minSize"]:
             return False
         return True
 
@@ -92,8 +116,9 @@ class DirProc(ProcessorBase):
                 continue
             Sum = [0]
             self.dirScan(Sum, rootDir)
-            if self.applyFilter(Size=Sum[0]):
-                data.append((str(rootDir), Sum[0]))
+            scaledSize = int(Sum[0] / sizeScalesVals[self.reqs["sizeScale"]])
+            if self.applyFilter(Size=scaledSize):
+                data.append((str(rootDir), scaledSize))
         # todo: reformat this sorting and make custom predicats
         sortKey = int(self.reqs["sortBy"])
         reverseOrder = False
@@ -124,10 +149,12 @@ class FileProc(ProcessorBase):
             else:
                 fileName = os.path.splitext(file.name)[0]
                 fileExt = os.path.splitext(file.name)[1][1:]
-                if self.applyFilter(fileName, file.stat().st_size, fileExt):
+                scaledSize = int(file.stat().st_size / \
+                             int(sizeScalesVals[self.reqs["sizeScale"]]))
+                if self.applyFilter(fileName, scaledSize, fileExt):
                     if self.currentElemNumber >= self.reqs["maxElemNumber"]:
                         break
-                    data.append((fileName, fileExt, file.stat().st_size))
+                    data.append((fileName, fileExt, scaledSize))
                     self.currentElemNumber += 1
 
     def process(self):

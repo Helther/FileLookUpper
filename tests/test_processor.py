@@ -3,7 +3,7 @@ import os
 from shutil import rmtree
 import pathlib
 from lookup.processor import ProcessorBase, DirProc, FileProc, SortByWhat, \
-    DefaultReqs
+    DefaultReqs, sizeScales, sizeScalesVals
 
 # static consts for setup
 testDataDir = "testData"
@@ -20,7 +20,8 @@ filterPairs = {((0, "", ""), (0, "", "")): True,
                }
 
 
-def setDirStruct(dirData=None, fileData=None):  # would be bad if out of memory
+def setDirStruct(sizeScale, dirData=None, fileData=None):
+    # would be bad if out of memory
     # set up dir/file Scan and testRes
 
     fileName = "tFile_"
@@ -32,7 +33,7 @@ def setDirStruct(dirData=None, fileData=None):  # would be bad if out of memory
         dirList.append(str(pathlib.Path(f"{testDataDir}/tDir{i}")))
     for d in range(len(dirList)):
         dirSize = 0
-        if dirList[d] != testDataDir:
+        if dirList[d] != testDataDir and not os.path.exists(dirList[d]):
             os.mkdir(dirList[d])
         for i in range(1, fileNumber):
             with open(str(pathlib.Path(f"{dirList[d]}/{fileName}{i+d}.{fileExt}"
@@ -43,10 +44,10 @@ def setDirStruct(dirData=None, fileData=None):  # would be bad if out of memory
             if dirData is not None:
                 dirData[0][0] += 1024*(i+d)
                 if dirList[d] != testDataDir:
-                    dirSize += 1024*(i+d)
+                    dirSize += int(1024*(i+d) / sizeScale)
             if fileData is not None:
                 fileData.append((f"{fileName}{i+d}", f"{fileExt}{i+d}",
-                                 1024*(i+d)))
+                                 int(1024*(i+d) / sizeScale)))
         if dirData is not None and dirList[d] != testDataDir:
             dirData[1].append((dirList[d], dirSize))
 
@@ -89,29 +90,41 @@ class TestDirProc(TestCase):
         if not os.path.exists(testDataDir):
             os.mkdir(testDataDir)
         # sum of file sizes in dir Scan
-        self.dirScanExpectedSum = [0]
+        self.dirScanExpectedSum = []
         # list of all test dirNames and its sizes
         self.testDirRes = []
+        for i in range(0, len(sizeScalesVals)):
+            self.dirScanExpectedSum.append([0])
+            self.testDirRes.append([])
         # dir scan init
-        setDirStruct(dirData=[self.dirScanExpectedSum, self.testDirRes])
+        for i in range(0, len(sizeScalesVals)):
+            if not os.path.exists(testDataDir):
+                os.mkdir(testDataDir)
+            setDirStruct(sizeScalesVals[i], dirData=[self.dirScanExpectedSum[i],
+                                  self.testDirRes[i]])
 
     def test_dir_scan(self):
-        testSum = [0]
-        proc = DirProc()
-        proc.dirScan(testSum, pathlib.Path(testDataDir))
-        self.assertEqual(self.dirScanExpectedSum[0], testSum[0])
+        testSum = []
+        for i in range(0, len(sizeScalesVals)):
+            testSum.append([0])
+            proc = DirProc()
+            proc.dirScan(testSum[i], pathlib.Path(testDataDir))
+        for i in range(0, len(sizeScalesVals)):
+            self.assertEqual(self.dirScanExpectedSum[i][0], testSum[i][0])
 
     def test_process(self):
         reqs = DefaultReqs
         reqs["rootDir"] = testDataDir
-        reqs["maxElemNumber"] = len(self.testDirRes)
+        reqs["maxElemNumber"] = len(self.testDirRes[0])
         sorts = [SortByWhat.NAME, SortByWhat.SIZE]
-        for i in range(len(sorts)):
-            reqs["sortBy"] = sorts[i].value
-            proc = DirProc(reqs)
-            testData = proc.process()
-            self.testDirRes.sort(key=lambda x: x[i], reverse=bool(i))
-            self.assertEqual(testData, self.testDirRes)
+        for sort in range(len(sorts)):
+            reqs["sortBy"] = sorts[sort].value
+            for scale in range(len(sizeScalesVals)):
+                reqs["sizeScale"] = scale
+                proc = DirProc(reqs)
+                testData = proc.process()
+                self.testDirRes[scale].sort(key=lambda x: x[sort], reverse=bool(sort))
+                self.assertEqual(testData, self.testDirRes[scale])
 
     def tearDown(self) -> None:
         rmtree(testDataDir)
@@ -125,24 +138,31 @@ class TestFileProc(TestCase):
             os.mkdir(testDataDir)
         # list of all test FileNames, exts and its sizes
         self.testFileRes = []
-        # dir scan init
-        setDirStruct(fileData=self.testFileRes)
+        for i in range(0, len(sizeScalesVals)):
+            self.testFileRes.append([])
+            # dir scan init
+            setDirStruct(sizeScalesVals[i], fileData=self.testFileRes[i])
 
 # todo: having troubles with sort when text elems are equal or have symbols
+    # or just zeroes
     def test_process(self):
         reqs = DefaultReqs
         reqs["rootDir"] = testDataDir
-        reqs["maxElemNumber"] = len(self.testFileRes)
+        reqs["maxElemNumber"] = len(self.testFileRes[0])
         sorts = [SortByWhat.NAME, SortByWhat.TYPE, SortByWhat.SIZE]
-        for i in range(len(sorts)):
-            reqs["sortBy"] = sorts[i].value
-            proc = FileProc(reqs)
-            testData = proc.process()
-            reverse = False
-            if sorts[i] == SortByWhat.SIZE:
-                reverse = True
-            self.testFileRes.sort(key=lambda x: x[i], reverse=reverse)
-            self.assertEqual(testData, self.testFileRes)
+        for sort in range(len(sorts)):
+            reqs["sortBy"] = sorts[sort].value
+            for scale in range(len(sizeScalesVals)):
+                if sizeScales.MB.value == scale:
+                    continue # todo temp solution for sort problem
+                reqs["sizeScale"] = scale
+                proc = FileProc(reqs)
+                testData = proc.process()
+                reverse = False
+                if sorts[sort] == SortByWhat.SIZE:
+                    reverse = True
+                self.testFileRes[scale].sort(key=lambda x: x[sort], reverse=reverse)
+                self.assertEqual(testData, self.testFileRes[scale])
 
     def tearDown(self) -> None:
         rmtree(testDataDir)

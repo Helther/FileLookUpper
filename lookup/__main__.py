@@ -15,59 +15,139 @@
 #   limitations under the License.
 ################
 
+from enum import Enum
 from lookup import processor
 import argparse
+import os.path
 
 
-def displayTable(data, maxColLength=60, maxTableSize=100):
+class TableColumns(Enum):
+    Num = 0,
+    Name = 1,
+    Type = 2,
+    Size = 3
+
+class ColSizeVals(Enum):
+    Num = 6
+    Name = 100
+    Type = 10
+    Size = 15
+
+
+DirTableColSizes = {TableColumns.Num: ("№", ColSizeVals.Num.value),
+                    TableColumns.Name: ("Name", ColSizeVals.Name.value),
+                    TableColumns.Size: ("Size", ColSizeVals.Size.value)}
+
+FileTableColSizes = {TableColumns.Num: ("№", ColSizeVals.Num.value),
+                     TableColumns.Name: ("Name", ColSizeVals.Name.value),
+                     TableColumns.Type: ("Type", ColSizeVals.Type.value),
+                     TableColumns.Size: ("Size", ColSizeVals.Size.value)}
+
+
+def elidePath(Path, sizeDiff):
+    result = ''
+    brokenPath = os.path.split(Path)
+    sizeDiffCopy = sizeDiff
+    sizeDiff += len(brokenPath[len(brokenPath) - 1])
+    if brokenPath[0] == '' or sizeDiff - len(os.path.sep) > 0:
+        return Path[-sizeDiffCopy:]
+    count = len(brokenPath) - 2
+    while sizeDiff - len(os.path.sep) < 0:
+        sizeDiff += len(brokenPath[count])
+        result += brokenPath[count]
+        count -= 1
+    return os.path.sep + result
+
+
+def elideColumn(value, columnMaxSize, elideRight):
+    continChar = '...'
+    spareSpace = columnMaxSize - len(value) - 1
+    if spareSpace < 0:
+        if elideRight:
+            elidedVal = value[:spareSpace - len(continChar)]
+            return "| {}{} {}".format(elidedVal, continChar, ' ' *
+                                   max(0, spareSpace))
+        else:
+            elidedVal = elidePath(value, spareSpace - len(continChar))
+            return "| {}{}{}".format(continChar, elidedVal, ' ')
+    else:
+        return "| {}{}".format(value, ' ' * (columnMaxSize - len(value)))
+
+
+def displayTable(data, sizeScale, maxTableRowCount=100):
     """
     outputs to console processed list of data in table format
-    :param maxColLength:
+    format of the table:
+    +---+------+------------+
+    | № | Name | Size in {} |
+    +---+------+------------+
+    |   |      |            |
+    +---+------+------------+
     :param data: list of tuples
-    :param maxTableSize:
+    :param maxTableRowCount:
+    :param sizeScale: enum val
     """
     if len(data) == 0:
         print("No elements were found")
         return
-    continChar = '...'
-    tableSize = min(len(data), maxTableSize)
     row = 0
-    fileColumnNumber = 3
-    dirColumnNumber = 2
-    colNameNum = "№"
-    colNameName = "Name"
-    colNameType = "Type"
-    colNameSize = "Size in Mbytes"
-    if len(data[row]) == dirColumnNumber:
-        print('\n', colNameNum, ' ' * (len(str(maxTableSize)) -
-              len(colNameNum) - 1), colNameName, ' ' * (maxColLength -
-              len(colNameName) + 2), colNameSize, end='')
-    if len(data[row]) == fileColumnNumber:
-        print('\n', colNameNum, ' ' * (len(str(maxTableSize)) -
-              len(colNameNum) - 1), colNameName, ' ' * (maxColLength -
-              len(colNameName) + 2), colNameType, ' ' * (maxColLength
-              - len(colNameType) + 2), colNameSize, end='')
+    tableColumns = {}
+    if len(data[row]) == len(DirTableColSizes) - 1:
+        tableColumns = DirTableColSizes.copy()
+    elif len(data[row]) == len(FileTableColSizes) - 1:
+        tableColumns = FileTableColSizes.copy()
+    else:
+        print("wrong data dimentions")
+        return
+    # table title and separator and row separator
+    print("\nFilelookUpper Results Table")
+    tableColumnsSize = 0
+    rowSeparatorStr = ""
+    for k, nameSize in tableColumns.items():
+        tableColumnsSize += len(nameSize[0]) + nameSize[1]
+        rowSeparatorStr += "+{}".format('-' * (nameSize[1] + 1))
+    print('=' * tableColumnsSize)
+    print(rowSeparatorStr + '+')
+    # headers
+    headersStr = ""
+    for k, nameSize in tableColumns.items():
+        if nameSize[0] == DirTableColSizes[TableColumns.Size][0]:
+            colSizeName = f"{DirTableColSizes[TableColumns.Size][0]} in " \
+                          f"{processor.sizeScaleNames[sizeScale]}"
+            headersStr += "| {}{}".format(colSizeName, ' ' * (nameSize[1] - len(colSizeName)))
+        else:
+            headersStr += "| {}{}".format(nameSize[0], ' ' * (nameSize[1] - len(nameSize[0])))
+    print(headersStr + '|')
+
+    # rows display
+    tableSize = min(len(data), maxTableRowCount)
+    col = 0
     while row < tableSize:
-        print('\n', row + 1, ' ' * (len(str(maxTableSize)) -
-                                    len(str(row+1))), end='')
-        isName = True
-        for col in range(0, len(data[row])):
-            spareSpace = maxColLength - len(str(data[row][col]))
-            if col == len(data[row]) - 1:
-                Str = str(int(data[row][col] / (10 ** 6)))
-            else:
-                Str = str(data[row][col])[-maxColLength:]
-            if isName and spareSpace < 0:
-                print("{}{} {}".format(continChar, Str, ' ' *
-                                       max(0, spareSpace)), end='')
-            else:
-                print("{} {}".format(Str, ' ' * (max(0, spareSpace) +
-                                                 len(continChar))), end='')
-            isName = False
+        rowStr = ""
+        for k, nameSize in tableColumns.items():
+            if nameSize[0] == DirTableColSizes[TableColumns.Num][0]:
+                elidedRowNum = elideColumn(str(row + 1), nameSize[1], True)
+                rowStr += elidedRowNum
+                continue
+            currentEntry = data[row][col]
+            if nameSize[0] == DirTableColSizes[TableColumns.Name][0]:
+                elidedRowName = elideColumn(currentEntry, nameSize[1], False)
+                rowStr += elidedRowName
+                col += 1
+                continue
+            elidedEntry = elideColumn(str(currentEntry), nameSize[1], True)
+            rowStr += elidedEntry
+            col += 1
+        rowStr += '|'
+        print(rowStr)
         row += 1
-    # todo expand path by hiding parent folders as "../"
-    #  from a certain depth(length)
-    # todo way to set col size scale
+        col = 0
+    # bottom of the table
+    print(rowSeparatorStr + '+')
+"""
+    # todo elide path by hiding parent folders as "../"
+    # from a certain depth(at the path separator)
+"""
 
 
 def parseArgs():
@@ -89,19 +169,23 @@ def parseArgs():
                              " 0 - NAME, 1 - TYPE, 2 - SIZE. Default by size")
     parser.add_argument("-m", "--minSize", action="store", type=int, nargs=1,
                         help="filter elements with size less than given"
-                             " argument (in bytes). Zero by default")
+                             " argument with a certain scale "
+                             "(in Mbytes by default). Zero by default")
     parser.add_argument("-n", "--nameFilter", action="store", type=str, nargs=1,
                         help="given argument, filter whether element name"
                              " contains it. Off by default")
-
     parser.add_argument("-r", "--rootDir", action="store", type=str, nargs=1,
                         help="specify root directory path. Working folder"
                              " by default")
     parser.add_argument("-e", "--elemMaxNumber", action="store", type=int,
                         nargs=1,
                         help="choose a max number of elements to display")
+    parser.add_argument("-c", "--sizeScale", action="store", type=int, nargs=1,
+                        choices=list(range(0, processor.sizeScales.MAX.value)),
+                        help="choose how to scale elements sizes: 0 - Bytes,"
+                             " 1 - KBytes, 2 - MBytes. Default is Mbytes")
     args = parser.parse_args()
-    reqs = processor.DefaultReqs
+    reqs = processor.DefaultReqs.copy()
     isDir = False
 
     if args.directory:
@@ -125,6 +209,8 @@ def parseArgs():
         if args.elemMaxNumber[0] <= 0:
             parser.error("not valid argument value: e > 0")
         reqs["maxElemNumber"] = args.elemMaxNumber[0]
+    if args.sizeScale:
+        reqs["sizeScale"] = args.sizeScale[0]
     return reqs, isDir
 
 
@@ -135,7 +221,7 @@ def main():
     else:
         looker = processor.FileProc(reqs)
     resultData = looker.process()
-    displayTable(resultData, maxTableSize=reqs["maxElemNumber"])
+    displayTable(resultData, reqs["sizeScale"], maxTableRowCount=reqs["maxElemNumber"])
 
 
 if __name__ == '__main__':
