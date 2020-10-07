@@ -20,6 +20,8 @@ from lookup import processor
 import argparse
 import os.path
 
+programName = "FilelookUpper"
+programVersion = "0.2"
 
 class TableColumns(Enum):
     Num = 0,
@@ -100,23 +102,25 @@ def displayTable(data, sizeScale, maxTableRowCount=100):
         print("wrong data dimentions")
         return
     # table title and separator and row separator
-    print("\nFilelookUpper Results Table")
+    print(f"\n{programName} {programVersion} Results Table")
     tableColumnsSize = 0
     rowSeparatorStr = ""
     for k, nameSize in tableColumns.items():
         tableColumnsSize += len(nameSize[0]) + nameSize[1]
         rowSeparatorStr += "+{}".format('-' * (nameSize[1] + 1))
     print('=' * tableColumnsSize)
-    print(rowSeparatorStr + '+')
+    print(rowSeparatorStr + '+/')
     # headers
     headersStr = ""
     for k, nameSize in tableColumns.items():
         if nameSize[0] == DirTableColSizes[TableColumns.Size][0]:
             colSizeName = f"{DirTableColSizes[TableColumns.Size][0]} in " \
                           f"{processor.sizeScaleNames[sizeScale]}"
-            headersStr += "| {}{}".format(colSizeName, ' ' * (nameSize[1] - len(colSizeName)))
+            headersStr += "| {}{}".format(colSizeName, ' ' * (nameSize[1] -
+                                                              len(colSizeName)))
         else:
-            headersStr += "| {}{}".format(nameSize[0], ' ' * (nameSize[1] - len(nameSize[0])))
+            headersStr += "| {}{}".format(nameSize[0], ' ' * (nameSize[1] -
+                                                              len(nameSize[0])))
     print(headersStr + '|')
 
     # rows display
@@ -139,11 +143,11 @@ def displayTable(data, sizeScale, maxTableRowCount=100):
             rowStr += elidedEntry
             col += 1
         rowStr += '|'
+        print(rowSeparatorStr + '+')  # top of the row
         print(rowStr)
         row += 1
         col = 0
-    # bottom of the table
-    print(rowSeparatorStr + '+')
+    print(rowSeparatorStr + '+')  # bottom of the table
 """
     # todo elide path by hiding parent folders as "../"
     # from a certain depth(at the path separator)
@@ -221,7 +225,8 @@ def main():
     else:
         looker = processor.FileProc(reqs)
     resultData = looker.process()
-    displayTable(resultData, reqs["sizeScale"], maxTableRowCount=reqs["maxElemNumber"])
+    displayTable(resultData, reqs["sizeScale"],
+                 maxTableRowCount=reqs["maxElemNumber"])
 
 
 if __name__ == '__main__':
