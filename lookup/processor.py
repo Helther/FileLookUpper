@@ -1,13 +1,15 @@
 from enum import Enum
 import pathlib
 import os.path
+import threading
+import time
 
 # todo global
-#  fix maxElemNum filter to go through all elems and then to slice
-#  the result
-#  fix issue with root argument when passing path with whitespaces
-#  fix minSize issue for small vals
-#  fix type filter for files w/o ext
+#  remove recursivness
+#  use sorted container for data without additional sort
+#  add test decriptions
+
+MAX_THREAD_COUNT = 8
 
 
 class SortByWhat(Enum):
@@ -25,8 +27,8 @@ class sizeScales(Enum):
 
 
 sizeScalesVals = {sizeScales.B.value: 1,
-                  sizeScales.KB.value: 10 ** 3,
-                  sizeScales.MB.value: 10 ** 6}
+                  sizeScales.KB.value: 1024,
+                  sizeScales.MB.value: 1024 << 10}
 
 
 sizeScaleNames = {sizeScales.B.value: "Bytes",
@@ -35,7 +37,7 @@ sizeScaleNames = {sizeScales.B.value: "Bytes",
 
 # table of arguments default values
 DefaultReqs = {"sortBy": SortByWhat.SIZE.value,
-               "minSize": 0,
+               "minSize": -1,
                "sizeScale": sizeScales.MB.value,
                "nameFilter": "",
                "typeFilter": "",
@@ -45,7 +47,7 @@ DefaultReqs = {"sortBy": SortByWhat.SIZE.value,
 
 class ProcessorBase(object):
     def __init__(self, reqs=None):
-        self.reqs = DefaultReqs if reqs is None else reqs
+        self.reqs = DefaultReqs.copy() if reqs is None else reqs
 
     def process(self):
         pass
@@ -60,13 +62,14 @@ class ProcessorBase(object):
         :param Size int
         :return: bool
         """
-        if Name != DefaultReqs["nameFilter"] and self.reqs["nameFilter"] \
-                not in Name:
+        if Name != DefaultReqs["nameFilter"] and \
+                self.reqs["nameFilter"] not in Name:
             return False
-        if Type != DefaultReqs["typeFilter"] and self.reqs["typeFilter"] \
-                not in Type:
+        if Type != DefaultReqs["typeFilter"] and \
+                self.reqs["typeFilter"] not in Type:
             return False
-        if Size != DefaultReqs["minSize"] and Size < self.reqs["minSize"]:
+        if Size != DefaultReqs["minSize"] and \
+                Size < self.reqs["minSize"]:
             return False
         return True
 
@@ -93,6 +96,13 @@ class DirProc(ProcessorBase):
             else:
                 Sum[0] += file.stat().st_size
 
+    def dirScanMT(self, data, rootDir):
+        Sum = [0]
+        self.dirScan(Sum, rootDir)
+        scaledSize = int(Sum[0] / sizeScalesVals[self.reqs["sizeScale"]])
+        if self.applyFilter(Size=scaledSize):
+            data.append((str(rootDir), scaledSize))
+
     def process(self):
         """
         recursivly looks through sub files in a list of root Dir
@@ -102,23 +112,29 @@ class DirProc(ProcessorBase):
         """
         rootP = pathlib.Path(self.reqs["rootDir"])
         rootDirNames = []
-        rootDirNum = 0
         for Dir in rootP.iterdir():
-
             if Dir.is_dir():
                 rootDirNames.append(Dir)
-                rootDirNum += 1
-                if rootDirNum >= self.reqs["maxElemNumber"]:
-                    break
         data = []
-        for rootDir in rootDirNames:
-            if not self.applyFilter(Name=rootDir.name):
+        threadPool = []
+        start_time = time.time()
+        index = 0
+        while index < len(rootDirNames):
+            if not self.applyFilter(Name=rootDirNames[index].name):
                 continue
-            Sum = [0]
-            self.dirScan(Sum, rootDir)
-            scaledSize = int(Sum[0] / sizeScalesVals[self.reqs["sizeScale"]])
-            if self.applyFilter(Size=scaledSize):
-                data.append((str(rootDir), scaledSize))
+            for i in range(0, MAX_THREAD_COUNT):
+                threadPool.append(threading.Thread(name=f"thread_{i}",
+                    target=self.dirScanMT, args=(data, rootDirNames[index])))
+                index += 1
+                if index >= len(rootDirNames) - 1:
+                    break
+            for thread in threadPool:
+                thread.start()
+            for thread in threadPool:
+                thread.join()
+            threadPool.clear()
+        duration = time.time() - start_time
+        print(f"Scanned {len(rootDirNames)} elements in {duration} seconds")
         # todo: reformat this sorting and make custom predicats
         sortKey = int(self.reqs["sortBy"])
         reverseOrder = False
@@ -132,7 +148,33 @@ class DirProc(ProcessorBase):
 class FileProc(ProcessorBase):
     def __init__(self, reqs=None):
         super(FileProc, self).__init__(reqs)
-        self.currentElemNumber = 0
+
+    def fileScanMT(self, data, rootDir):
+        rootDirs = []
+        threadPool = []
+        index = 0
+        for rDir in rootDir.iterdir():
+            if rDir.is_dir():
+                rootDirs.append(rDir)
+            else:
+                fileName = os.path.splitext(rDir.name)[0]
+                fileExt = os.path.splitext(rDir.name)[1][1:]
+                scaledSize = int(rDir.stat().st_size / \
+                                 int(sizeScalesVals[self.reqs["sizeScale"]]))
+                if self.applyFilter(fileName, scaledSize, fileExt):
+                    data.append((fileName, fileExt, scaledSize))
+        while index < len(rootDirs):
+            for i in range(0, MAX_THREAD_COUNT):
+                threadPool.append(threading.Thread(name=f"thread_{i}",
+                    target=self.fileScan, args=(data, rootDirs[index])))
+                index += 1
+                if index >= len(rootDirs) - 1:
+                    break
+            for thread in threadPool:
+                thread.start()
+            for thread in threadPool:
+                thread.join()
+            threadPool.clear()
 
     def fileScan(self, data, Dir):
         """
@@ -142,7 +184,6 @@ class FileProc(ProcessorBase):
         :param Dir: Path object
         :return: None
         """
-
         for file in Dir.iterdir():
             if file.is_dir():
                 self.fileScan(data, Dir / file.name)
@@ -152,10 +193,7 @@ class FileProc(ProcessorBase):
                 scaledSize = int(file.stat().st_size / \
                              int(sizeScalesVals[self.reqs["sizeScale"]]))
                 if self.applyFilter(fileName, scaledSize, fileExt):
-                    if self.currentElemNumber >= self.reqs["maxElemNumber"]:
-                        break
                     data.append((fileName, fileExt, scaledSize))
-                    self.currentElemNumber += 1
 
     def process(self):
         """
@@ -165,8 +203,10 @@ class FileProc(ProcessorBase):
         """
         data = []
         rootP = pathlib.Path(self.reqs["rootDir"])
-        self.fileScan(data, rootP)
-
+        start_time = time.time()
+        self.fileScanMT(data, rootP)
+        duration = time.time() - start_time
+        print(f"Scanned {len(data)} elements in {duration} seconds")
         sortKey = int(self.reqs["sortBy"])
         reverseOrder = False
         if sortKey == SortByWhat.SIZE.value:  # todo ugly

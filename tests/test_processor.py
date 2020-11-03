@@ -61,11 +61,11 @@ class TestProcessorBase(TestCase):
     def test_is_path_valid(self):
         self.assertTrue(ProcessorBase.isPathValid(pathlib.Path(testDir)))
 
-    # todo: figure out how to report errors in big tests
+    # todo: add log prints for other tests
     def test_apply_filter(self):
         for k, v in filterPairs.items():
             try:
-                reqs = DefaultReqs
+                reqs = DefaultReqs.copy()
                 reqs["minSize"] = k[0][0]
                 reqs["nameFilter"] = k[0][1]
                 reqs["typeFilter"] = k[0][2]
@@ -113,7 +113,7 @@ class TestDirProc(TestCase):
             self.assertEqual(self.dirScanExpectedSum[i][0], testSum[i][0])
 
     def test_process(self):
-        reqs = DefaultReqs
+        reqs = DefaultReqs.copy()
         reqs["rootDir"] = testDataDir
         reqs["maxElemNumber"] = len(self.testDirRes[0])
         sorts = [SortByWhat.NAME, SortByWhat.SIZE]
@@ -146,7 +146,7 @@ class TestFileProc(TestCase):
 # todo: having troubles with sort when text elems are equal or have symbols
     # or just zeroes
     def test_process(self):
-        reqs = DefaultReqs
+        reqs = DefaultReqs.copy()
         reqs["rootDir"] = testDataDir
         reqs["maxElemNumber"] = len(self.testFileRes[0])
         sorts = [SortByWhat.NAME, SortByWhat.TYPE, SortByWhat.SIZE]

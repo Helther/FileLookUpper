@@ -99,7 +99,7 @@ def displayTable(data, sizeScale, maxTableRowCount=100):
     elif len(data[row]) == len(FileTableColSizes) - 1:
         tableColumns = FileTableColSizes.copy()
     else:
-        print("wrong data dimentions")
+        print("wrong data dimensions")
         return
     # table title and separator and row separator
     print(f"\n{programName} {programVersion} Results Table")
@@ -178,7 +178,7 @@ def parseArgs():
     parser.add_argument("-n", "--nameFilter", action="store", type=str, nargs=1,
                         help="given argument, filter whether element name"
                              " contains it. Off by default")
-    parser.add_argument("-r", "--rootDir", action="store", type=str, nargs=1,
+    parser.add_argument("-r", "--rootDir", action="store", type=str, nargs='+',
                         help="specify root directory path. Working folder"
                              " by default")
     parser.add_argument("-e", "--elemMaxNumber", action="store", type=int,
@@ -205,7 +205,7 @@ def parseArgs():
     if args.typeFilter:
         reqs["typeFilter"] = args.typeFilter[0]
     if args.rootDir:
-        root = args.rootDir[0]
+        root = ' '.join(args.rootDir)
         if not processor.ProcessorBase.isPathValid(root):
             parser.error(f" {root} is not valid path")
         reqs["rootDir"] = root
