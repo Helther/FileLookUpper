@@ -45,7 +45,7 @@ Deploy via pip using setup.py script in project root directory
 ## Versioning
 
 0.1 - init version  
-0.2 - display improvments and size scale control functionality  
+0.2 - display improvements and size scale control functionality  
 
 ## License
 
