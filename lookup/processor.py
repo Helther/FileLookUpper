@@ -3,8 +3,11 @@ import pathlib
 import os.path
 import threading
 import time
+import sys
 
 # todo global
+#  add progress bar helpers
+#  debug type filter
 #  remove recursivness
 #  use sorted container for data without additional sort
 #  add test decriptions
@@ -66,7 +69,8 @@ class ProcessorBase(object):
                 self.reqs["nameFilter"] not in Name:
             return False
         if Type != DefaultReqs["typeFilter"] and \
-                self.reqs["typeFilter"] not in Type:
+                (self.reqs["typeFilter"] not in Type or 
+                not Type):
             return False
         if Size != DefaultReqs["minSize"] and \
                 Size < self.reqs["minSize"]:
@@ -119,6 +123,10 @@ class DirProc(ProcessorBase):
         threadPool = []
         start_time = time.time()
         index = 0
+        progress = 0
+        sys.stdout.write('\r')
+        sys.stdout.write("Progress: [%-30s] %d%%" % ('', 0))
+        sys.stdout.flush()
         while index < len(rootDirNames):
             if not self.applyFilter(Name=rootDirNames[index].name):
                 continue
@@ -132,9 +140,15 @@ class DirProc(ProcessorBase):
                 thread.start()
             for thread in threadPool:
                 thread.join()
+                progress += 1
+                j = (progress) / len(rootDirNames)
+                sys.stdout.write('\r')
+                sys.stdout.write("Progress: [%-30s] %d%%" % ('='*int(30*j), 100*j))
+                sys.stdout.flush()
+                time.sleep(0.1)
             threadPool.clear()
         duration = time.time() - start_time
-        print(f"Scanned {len(rootDirNames)} elements in {duration} seconds")
+        print(f"\nScanned {len(rootDirNames)} elements in {duration} seconds")
         # todo: reformat this sorting and make custom predicats
         sortKey = int(self.reqs["sortBy"])
         reverseOrder = False
@@ -153,6 +167,7 @@ class FileProc(ProcessorBase):
         rootDirs = []
         threadPool = []
         index = 0
+        progress = 0
         for rDir in rootDir.iterdir():
             if rDir.is_dir():
                 rootDirs.append(rDir)
@@ -163,7 +178,11 @@ class FileProc(ProcessorBase):
                                  int(sizeScalesVals[self.reqs["sizeScale"]]))
                 if self.applyFilter(fileName, scaledSize, fileExt):
                     data.append((fileName, fileExt, scaledSize))
+            sys.stdout.write('\r')
+            sys.stdout.write("Progress: [%-30s] %d%%" % ('', 0))
+            sys.stdout.flush()
         while index < len(rootDirs):
+            sys.stdout.write('\r')
             for i in range(0, MAX_THREAD_COUNT):
                 threadPool.append(threading.Thread(name=f"thread_{i}",
                     target=self.fileScan, args=(data, rootDirs[index])))
@@ -174,7 +193,14 @@ class FileProc(ProcessorBase):
                 thread.start()
             for thread in threadPool:
                 thread.join()
+                progress += 1
+                j = (progress) / len(rootDirs)
+                sys.stdout.write('\r')
+                sys.stdout.write("Progress: [%-30s] %d%%" % ('='*int(30*j), 100*j))
+                sys.stdout.flush()
+                time.sleep(0.1)   
             threadPool.clear()
+
 
     def fileScan(self, data, Dir):
         """
@@ -189,7 +215,7 @@ class FileProc(ProcessorBase):
                 self.fileScan(data, Dir / file.name)
             else:
                 fileName = os.path.splitext(file.name)[0]
-                fileExt = os.path.splitext(file.name)[1][1:]
+                fileExt = os.path.splitext(file.name)[1][1:]# todo test empty exts
                 scaledSize = int(file.stat().st_size / \
                              int(sizeScalesVals[self.reqs["sizeScale"]]))
                 if self.applyFilter(fileName, scaledSize, fileExt):
@@ -206,10 +232,11 @@ class FileProc(ProcessorBase):
         start_time = time.time()
         self.fileScanMT(data, rootP)
         duration = time.time() - start_time
-        print(f"Scanned {len(data)} elements in {duration} seconds")
+        print(f"\nScanned {len(data)} elements in {duration} seconds")
         sortKey = int(self.reqs["sortBy"])
         reverseOrder = False
         if sortKey == SortByWhat.SIZE.value:  # todo ugly
             reverseOrder = True
         data.sort(key=lambda x: x[sortKey], reverse=reverseOrder)
         return data
+
