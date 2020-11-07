@@ -3,11 +3,11 @@ import pathlib
 import os.path
 import threading
 import time
-import sys
+from sys import stdout
 
 # todo global
-#  add progress bar helpers
-#  debug type filter
+#  fix elide path
+#  add thread excepts handling
 #  remove recursivness
 #  use sorted container for data without additional sort
 #  add test decriptions
@@ -48,6 +48,32 @@ DefaultReqs = {"sortBy": SortByWhat.SIZE.value,
                "maxElemNumber": 100}
 
 
+class ProgressBar(object):
+    """
+    class for displaying udpating progress bar
+    """
+    def __init__(self, maxIndex):
+        self.maxIndex = maxIndex
+        self.currentIndex = 0
+
+    @staticmethod
+    def init():
+        stdout.write('\r')
+        stdout.write(ProgressBar.getProgressStr(0))
+        stdout.flush()
+
+    def update(self):
+        self.currentIndex += 1
+        stdout.write('\r')
+        stdout.write(self.getProgressStr(self.currentIndex / self.maxIndex))
+        stdout.flush()
+        time.sleep(0.1)
+
+    @staticmethod
+    def getProgressStr(index):
+        return "Progress: [%-30s] %d%%" % ('=' * int(30 * index), 100 * index)
+
+
 class ProcessorBase(object):
     def __init__(self, reqs=None):
         self.reqs = DefaultReqs.copy() if reqs is None else reqs
@@ -59,20 +85,20 @@ class ProcessorBase(object):
                     Size=DefaultReqs["minSize"],
                     Type=DefaultReqs["typeFilter"]):
         """
-        checks if elem passes the filter in reqs
+        checks if elem passes the filter in reqs, if argument is defaulted
+        then skips check
         :param Name string
         :param Type string
         :param Size int
         :return: bool
         """
-        if Name != DefaultReqs["nameFilter"] and \
+        if self.reqs["nameFilter"] != DefaultReqs["nameFilter"] and \
                 self.reqs["nameFilter"] not in Name:
             return False
-        if Type != DefaultReqs["typeFilter"] and \
-                (self.reqs["typeFilter"] not in Type or 
-                not Type):
+        if self.reqs["typeFilter"] != DefaultReqs["typeFilter"] and \
+                self.reqs["typeFilter"] not in Type:
             return False
-        if Size != DefaultReqs["minSize"] and \
+        if self.reqs["minSize"] != DefaultReqs["minSize"] and \
                 Size < self.reqs["minSize"]:
             return False
         return True
@@ -123,10 +149,8 @@ class DirProc(ProcessorBase):
         threadPool = []
         start_time = time.time()
         index = 0
-        progress = 0
-        sys.stdout.write('\r')
-        sys.stdout.write("Progress: [%-30s] %d%%" % ('', 0))
-        sys.stdout.flush()
+        progress = ProgressBar(len(rootDirNames))
+        ProgressBar.init()
         while index < len(rootDirNames):
             if not self.applyFilter(Name=rootDirNames[index].name):
                 continue
@@ -140,12 +164,7 @@ class DirProc(ProcessorBase):
                 thread.start()
             for thread in threadPool:
                 thread.join()
-                progress += 1
-                j = (progress) / len(rootDirNames)
-                sys.stdout.write('\r')
-                sys.stdout.write("Progress: [%-30s] %d%%" % ('='*int(30*j), 100*j))
-                sys.stdout.flush()
-                time.sleep(0.1)
+                progress.update()
             threadPool.clear()
         duration = time.time() - start_time
         print(f"\nScanned {len(rootDirNames)} elements in {duration} seconds")
@@ -172,17 +191,15 @@ class FileProc(ProcessorBase):
             if rDir.is_dir():
                 rootDirs.append(rDir)
             else:
-                fileName = os.path.splitext(rDir.name)[0]
+                fileName = str(rDir)
                 fileExt = os.path.splitext(rDir.name)[1][1:]
                 scaledSize = int(rDir.stat().st_size / \
                                  int(sizeScalesVals[self.reqs["sizeScale"]]))
                 if self.applyFilter(fileName, scaledSize, fileExt):
                     data.append((fileName, fileExt, scaledSize))
-            sys.stdout.write('\r')
-            sys.stdout.write("Progress: [%-30s] %d%%" % ('', 0))
-            sys.stdout.flush()
+            progress = ProgressBar(len(rootDirs))
+            ProgressBar.init()
         while index < len(rootDirs):
-            sys.stdout.write('\r')
             for i in range(0, MAX_THREAD_COUNT):
                 threadPool.append(threading.Thread(name=f"thread_{i}",
                     target=self.fileScan, args=(data, rootDirs[index])))
@@ -193,14 +210,8 @@ class FileProc(ProcessorBase):
                 thread.start()
             for thread in threadPool:
                 thread.join()
-                progress += 1
-                j = (progress) / len(rootDirs)
-                sys.stdout.write('\r')
-                sys.stdout.write("Progress: [%-30s] %d%%" % ('='*int(30*j), 100*j))
-                sys.stdout.flush()
-                time.sleep(0.1)   
+                progress.update()
             threadPool.clear()
-
 
     def fileScan(self, data, Dir):
         """
@@ -214,8 +225,8 @@ class FileProc(ProcessorBase):
             if file.is_dir():
                 self.fileScan(data, Dir / file.name)
             else:
-                fileName = os.path.splitext(file.name)[0]
-                fileExt = os.path.splitext(file.name)[1][1:]# todo test empty exts
+                fileName = str(file)
+                fileExt = os.path.splitext(file.name)[1][1:]
                 scaledSize = int(file.stat().st_size / \
                              int(sizeScalesVals[self.reqs["sizeScale"]]))
                 if self.applyFilter(fileName, scaledSize, fileExt):
@@ -237,6 +248,10 @@ class FileProc(ProcessorBase):
         reverseOrder = False
         if sortKey == SortByWhat.SIZE.value:  # todo ugly
             reverseOrder = True
-        data.sort(key=lambda x: x[sortKey], reverse=reverseOrder)
+        if sortKey == SortByWhat.NAME.value:
+            data.sort(key=lambda x: pathlib.Path(os.path.splitext(
+                pathlib.Path(x[sortKey]).name)[0]),
+                reverse=reverseOrder)
+        else:
+            data.sort(key=lambda x: x[sortKey], reverse=reverseOrder)
         return data
-

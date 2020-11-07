@@ -148,10 +148,6 @@ def displayTable(data, sizeScale, maxTableRowCount=100):
         row += 1
         col = 0
     print(rowSeparatorStr + '+')  # bottom of the table
-"""
-    # todo elide path by hiding parent folders as "../"
-    # from a certain depth(at the path separator)
-"""
 
 
 def parseArgs():
