@@ -6,7 +6,6 @@ import time
 from sys import stdout
 
 # todo global
-#  fix elide path
 #  add thread excepts handling
 #  remove recursivness
 #  use sorted container for data without additional sort
@@ -167,7 +166,7 @@ class DirProc(ProcessorBase):
                 progress.update()
             threadPool.clear()
         duration = time.time() - start_time
-        print(f"\nScanned {len(rootDirNames)} elements in {duration} seconds")
+        print(f"\nFound {len(rootDirNames)} element[s] in {duration} seconds")
         # todo: reformat this sorting and make custom predicats
         sortKey = int(self.reqs["sortBy"])
         reverseOrder = False
@@ -243,7 +242,7 @@ class FileProc(ProcessorBase):
         start_time = time.time()
         self.fileScanMT(data, rootP)
         duration = time.time() - start_time
-        print(f"\nScanned {len(data)} elements in {duration} seconds")
+        print(f"\nFound {len(data)} element[s] in {duration} seconds")
         sortKey = int(self.reqs["sortBy"])
         reverseOrder = False
         if sortKey == SortByWhat.SIZE.value:  # todo ugly

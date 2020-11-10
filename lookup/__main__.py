@@ -31,7 +31,7 @@ class TableColumns(Enum):
 
 class ColSizeVals(Enum):
     Num = 6
-    Name = 100
+    Name = 40
     Type = 10
     Size = 15
 
@@ -46,32 +46,43 @@ FileTableColSizes = {TableColumns.Num: ("№", ColSizeVals.Num.value),
                      TableColumns.Size: ("Size", ColSizeVals.Size.value)}
 
 
-def elidePath(Path, sizeDiff):
+def elidePath(Path, extraSpace):
     result = ''
+    currentSpace = 0
+    availableSpace = len(Path) + extraSpace
     brokenPath = os.path.split(Path)
-    sizeDiffCopy = sizeDiff
-    sizeDiff += len(brokenPath[len(brokenPath) - 1])
-    if brokenPath[0] == '' or sizeDiff - len(os.path.sep) > 0:
-        return Path[-sizeDiffCopy:]
-    count = len(brokenPath) - 2
-    while sizeDiff - len(os.path.sep) < 0:
-        sizeDiff += len(brokenPath[count])
-        result += brokenPath[count]
-        count -= 1
-    return os.path.sep + result
+    currentSpace += len(brokenPath[1])
+    # check if filename can't fit, else continue
+    if availableSpace < currentSpace:
+        result += brokenPath[1][currentSpace - availableSpace:]
+        return result
+    else:
+        result = brokenPath[1]
+    while brokenPath[1] != '':  # break path until it can't fit or fits whole
+        brokenPath = os.path.split(brokenPath[0])
+        currentSpace += len(brokenPath[1]) + len(os.path.sep)
+        if availableSpace < currentSpace:  # check if can't fit
+            result = "{}{}".format(os.path.sep, result)
+            break
+        else:
+            result = "{}{}{}".format(brokenPath[1], os.path.sep, result)
+    return result
 
 
 def elideColumn(value, columnMaxSize, elideRight):
     continChar = '...'
-    spareSpace = columnMaxSize - len(value) - 1
+    spareSpace = columnMaxSize - len(value) - 1  # space for text excluding ws
     if spareSpace < 0:
         if elideRight:
-            elidedVal = value[:spareSpace - len(continChar)]
+            elidedVal = value[:spareSpace - len(continChar) - 1]
             return "| {}{} {}".format(elidedVal, continChar, ' ' *
                                    max(0, spareSpace))
         else:
-            elidedVal = elidePath(value, spareSpace - len(continChar))
-            return "| {}{}{}".format(continChar, elidedVal, ' ')
+            elidedVal = elidePath(value, spareSpace - len(continChar) -
+                                  len(os.path.sep) - 1)
+            newSpareSpace = columnMaxSize - len(elidedVal) - len(continChar) - 1
+            return "| {}{} {}".format(continChar, elidedVal, ' ' *
+                                      max(0, newSpareSpace))
     else:
         return "| {}{}".format(value, ' ' * (columnMaxSize - len(value)))
 
