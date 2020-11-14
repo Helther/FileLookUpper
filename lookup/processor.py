@@ -95,13 +95,15 @@ class ProcessorBase(object):
         :param Size int
         :return: bool
         """
-        if self.reqs["nameFilter"] != DefaultReqs["nameFilter"] and \
+        if Name != DefaultReqs["nameFilter"] and \
+                self.reqs["nameFilter"] != DefaultReqs["nameFilter"] and \
                 self.reqs["nameFilter"] not in Name:
             return False
         if self.reqs["typeFilter"] != DefaultReqs["typeFilter"] and \
                 self.reqs["typeFilter"] not in Type:
             return False
-        if self.reqs["minSize"] != DefaultReqs["minSize"] and \
+        if Size != DefaultReqs["minSize"] and \
+                self.reqs["minSize"] != DefaultReqs["minSize"] and \
                 Size < self.reqs["minSize"]:
             return False
         return True
@@ -169,10 +171,17 @@ class DirProc(ProcessorBase):
         ProgressBar.init()
         while index < len(rootDirNames):
             if not self.applyFilter(Name=rootDirNames[index].name):
+                index += 1
+                progress.update()
                 continue
-            for i in range(0, MAX_THREAD_COUNT):
-                threadPool.append(Thread(name=f"thread_{i}",
-                    target=self.dirScanMT, args=(data, rootDirNames[index])))
+            threadCount = 0
+            while threadCount < MAX_THREAD_COUNT:
+                if self.applyFilter(Name=rootDirNames[index].name):
+                    threadPool.append(Thread(name=f"thread_{threadCount}",
+                        target=self.dirScanMT, args=(data, rootDirNames[index])))
+                    threadCount += 1
+                else:
+                    progress.update()
                 index += 1
                 if index >= len(rootDirNames) - 1:
                     break
@@ -221,7 +230,6 @@ class FileProc(ProcessorBase):
         rootDirs = []
         threadPool = []
         index = 0
-        progress = 0
         try:
             rDirlist = [x for x in rootDir.iterdir()]
         except OSError as e:
