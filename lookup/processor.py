@@ -6,9 +6,9 @@ import time
 import sys
 
 # todo global
+#  test sort by namefor dirs
 #  add scanned elems count update
 #  add keybr interrupt handle
-#  add GB scale option
 #  use sorted container for data without additional sort
 #  add test decriptions
 
@@ -26,17 +26,20 @@ class sizeScales(Enum):
     B = 0
     KB = 1
     MB = 2
-    MAX = 3
+    GB = 3
+    MAX = 4
 
 
 sizeScalesVals = {sizeScales.B.value: 1,
                   sizeScales.KB.value: 1024,
-                  sizeScales.MB.value: 1024 << 10}
+                  sizeScales.MB.value: 1024 << 10,
+                  sizeScales.GB.value: 1024 << 20}
 
 
 sizeScaleNames = {sizeScales.B.value: "Bytes",
                   sizeScales.KB.value: "KBytes",
-                  sizeScales.MB.value: "MBytes"}
+                  sizeScales.MB.value: "MBytes",
+                  sizeScales.GB.value: "GBytes"}
 
 # table of arguments default values
 DefaultReqs = {"sortBy": SortByWhat.SIZE.value,

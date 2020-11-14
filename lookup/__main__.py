@@ -104,7 +104,6 @@ def displayTable(data, sizeScale, maxTableRowCount=100):
         print("No elements were found")
         return
     row = 0
-    tableColumns = {}
     if len(data[row]) == len(DirTableColSizes) - 1:
         tableColumns = DirTableColSizes.copy()
     elif len(data[row]) == len(FileTableColSizes) - 1:
@@ -193,8 +192,8 @@ def parseArgs():
                         help="choose a max number of elements to display")
     parser.add_argument("-c", "--sizeScale", action="store", type=int, nargs=1,
                         choices=list(range(0, processor.sizeScales.MAX.value)),
-                        help="choose how to scale elements sizes: 0 - Bytes,"
-                             " 1 - KBytes, 2 - MBytes. Default is Mbytes")
+                        help="choose how to scale elements sizes: 0 - Bytes, "
+                             "1 - KBytes, 2 - MBytes, 3 - GBytes. Default is Mbytes")
     args = parser.parse_args()
     reqs = processor.DefaultReqs.copy()
     isDir = False
@@ -202,7 +201,8 @@ def parseArgs():
     if args.directory:
         isDir = True
     if args.sortBy:
-        reqs["sortBy"] = args.sortBy[0]
+        if not(isDir and args.sortBy[0] == processor.SortByWhat.TYPE.value):
+            reqs["sortBy"] = args.sortBy[0]
     if args.minSize:
         if not args.minSize[0] > 0:
             parser.error('Minimum size supposed to be more than zero')
