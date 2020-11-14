@@ -7,7 +7,10 @@ What it basically does is looks up directory sub structure of a given folder.
 For now it simply outputs information about directory stucture in a table form according to provided options like filters and sort rules.
 
 ![preview](preview.png)
-_Preview_
+_Preview example_
+```
+python -m lookup -r testData -c 0
+```
 ## Getting Started
 
 It is supposed to run as a script "lookup" from command line by providing it arguments like root path and processing options.
