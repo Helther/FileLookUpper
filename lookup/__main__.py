@@ -31,7 +31,7 @@ class TableColumns(Enum):
 
 class ColSizeVals(Enum):
     Num = 6
-    Name = 40
+    Name = 100
     Type = 10
     Size = 15
 

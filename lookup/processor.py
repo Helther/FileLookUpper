@@ -1,13 +1,14 @@
 from enum import Enum
 import pathlib
 import os.path
-import threading
+from threading import Thread
 import time
-from sys import stdout
+import sys
 
 # todo global
-#  add thread excepts handling
-#  remove recursivness
+#  add scanned elems count update
+#  add keybr interrupt handle
+#  add GB scale option
 #  use sorted container for data without additional sort
 #  add test decriptions
 
@@ -57,15 +58,15 @@ class ProgressBar(object):
 
     @staticmethod
     def init():
-        stdout.write('\r')
-        stdout.write(ProgressBar.getProgressStr(0))
-        stdout.flush()
+        sys.stdout.write('\r')
+        sys.stdout.write(ProgressBar.getProgressStr(0))
+        sys.stdout.flush()
 
     def update(self):
         self.currentIndex += 1
-        stdout.write('\r')
-        stdout.write(self.getProgressStr(self.currentIndex / self.maxIndex))
-        stdout.flush()
+        sys.stdout.write('\r')
+        sys.stdout.write(self.getProgressStr(self.currentIndex / self.maxIndex))
+        sys.stdout.flush()
         time.sleep(0.1)
 
     @staticmethod
@@ -126,8 +127,19 @@ class DirProc(ProcessorBase):
                 Sum[0] += file.stat().st_size
 
     def dirScanMT(self, data, rootDir):
+        """
+        thread target
+        :param data: list ref
+        :param rootDir: Path object
+        :return: None
+        """
         Sum = [0]
-        self.dirScan(Sum, rootDir)
+        try:
+            self.dirScan(Sum, rootDir)
+        except OSError as e:
+            print(f"\nError: {sys.exc_info()[1]}\n"
+                 "This element won't be included in the results")
+            return
         scaledSize = int(Sum[0] / sizeScalesVals[self.reqs["sizeScale"]])
         if self.applyFilter(Size=scaledSize):
             data.append((str(rootDir), scaledSize))
@@ -140,11 +152,13 @@ class DirProc(ProcessorBase):
         :return data: list<string,int>
         """
         rootP = pathlib.Path(self.reqs["rootDir"])
-        rootDirNames = []
-        for Dir in rootP.iterdir():
-            if Dir.is_dir():
-                rootDirNames.append(Dir)
         data = []
+        try:
+            rootDirNames = [Dir for Dir in rootP.iterdir() if os.path.isdir(Dir)]
+        except OSError as e:
+            print(f"\nRoot directory error: {sys.exc_info()[1]}\n"
+                    "Seach cancelled")
+            return []
         threadPool = []
         start_time = time.time()
         index = 0
@@ -154,7 +168,7 @@ class DirProc(ProcessorBase):
             if not self.applyFilter(Name=rootDirNames[index].name):
                 continue
             for i in range(0, MAX_THREAD_COUNT):
-                threadPool.append(threading.Thread(name=f"thread_{i}",
+                threadPool.append(Thread(name=f"thread_{i}",
                     target=self.dirScanMT, args=(data, rootDirNames[index])))
                 index += 1
                 if index >= len(rootDirNames) - 1:
@@ -165,8 +179,6 @@ class DirProc(ProcessorBase):
                 thread.join()
                 progress.update()
             threadPool.clear()
-        duration = time.time() - start_time
-        print(f"\nFound {len(rootDirNames)} element[s] in {duration} seconds")
         # todo: reformat this sorting and make custom predicats
         sortKey = int(self.reqs["sortBy"])
         reverseOrder = False
@@ -174,6 +186,9 @@ class DirProc(ProcessorBase):
             sortKey -= 1
             reverseOrder = True
         data.sort(key=lambda x: x[sortKey], reverse=reverseOrder)
+
+        duration = time.time() - start_time
+        print(f"\nFound {len(rootDirNames)} element[s] in {'%.3f'%duration} seconds")
         return data
 
 
@@ -181,26 +196,47 @@ class FileProc(ProcessorBase):
     def __init__(self, reqs=None):
         super(FileProc, self).__init__(reqs)
 
+    def proccesFile(self, data, File):
+        """
+        Adds given file info to the glbal data
+        :param data: list ref
+        :param File: Path
+        """
+        try:
+            fileName = str(File)
+            fileExt = os.path.splitext(File.name)[1][1:]
+            scaledSize = int(File.stat().st_size / \
+                             int(sizeScalesVals[self.reqs["sizeScale"]]))
+            if self.applyFilter(fileName, scaledSize, fileExt):
+                data.append((fileName, fileExt, scaledSize))
+        except OSError as e:
+            print(f"\nError: {sys.exc_info()[1]}\n"
+                "This element won't be included in the results")
+            return
+
     def fileScanMT(self, data, rootDir):
         rootDirs = []
         threadPool = []
         index = 0
         progress = 0
-        for rDir in rootDir.iterdir():
+        try:
+            rDirlist = [x for x in rootDir.iterdir()]
+        except OSError as e:
+            print(f"\nRoot directory error: {sys.exc_info()[1]}\n"
+                 "Seach cancelled")
+            return data
+
+        for rDir in rDirlist:
             if rDir.is_dir():
                 rootDirs.append(rDir)
             else:
-                fileName = str(rDir)
-                fileExt = os.path.splitext(rDir.name)[1][1:]
-                scaledSize = int(rDir.stat().st_size / \
-                                 int(sizeScalesVals[self.reqs["sizeScale"]]))
-                if self.applyFilter(fileName, scaledSize, fileExt):
-                    data.append((fileName, fileExt, scaledSize))
-            progress = ProgressBar(len(rootDirs))
-            ProgressBar.init()
+                self.proccesFile(data, rDir)
+
+        progress = ProgressBar(len(rootDirs))
+        ProgressBar.init()
         while index < len(rootDirs):
             for i in range(0, MAX_THREAD_COUNT):
-                threadPool.append(threading.Thread(name=f"thread_{i}",
+                threadPool.append(Thread(name=f"thread_{i}",
                     target=self.fileScan, args=(data, rootDirs[index])))
                 index += 1
                 if index >= len(rootDirs) - 1:
@@ -220,16 +256,17 @@ class FileProc(ProcessorBase):
         :param Dir: Path object
         :return: None
         """
-        for file in Dir.iterdir():
-            if file.is_dir():
-                self.fileScan(data, Dir / file.name)
-            else:
-                fileName = str(file)
-                fileExt = os.path.splitext(file.name)[1][1:]
-                scaledSize = int(file.stat().st_size / \
-                             int(sizeScalesVals[self.reqs["sizeScale"]]))
-                if self.applyFilter(fileName, scaledSize, fileExt):
-                    data.append((fileName, fileExt, scaledSize))
+        try:
+            for file in Dir.iterdir():
+                    if file.is_dir():
+                        self.fileScan(data, Dir / file.name)
+                    else:
+                        self.proccesFile(data, file)
+        except OSError as e:
+            print(f"\nError: {sys.exc_info()[1]}\n"
+                 "All elements and it's sub elements won't "
+                  "be included in the results")
+            return
 
     def process(self):
         """
@@ -241,16 +278,18 @@ class FileProc(ProcessorBase):
         rootP = pathlib.Path(self.reqs["rootDir"])
         start_time = time.time()
         self.fileScanMT(data, rootP)
-        duration = time.time() - start_time
-        print(f"\nFound {len(data)} element[s] in {duration} seconds")
-        sortKey = int(self.reqs["sortBy"])
-        reverseOrder = False
-        if sortKey == SortByWhat.SIZE.value:  # todo ugly
-            reverseOrder = True
-        if sortKey == SortByWhat.NAME.value:
-            data.sort(key=lambda x: pathlib.Path(os.path.splitext(
-                pathlib.Path(x[sortKey]).name)[0]),
-                reverse=reverseOrder)
-        else:
-            data.sort(key=lambda x: x[sortKey], reverse=reverseOrder)
+        if data:
+            sortKey = int(self.reqs["sortBy"])
+            reverseOrder = False
+            if sortKey == SortByWhat.SIZE.value:  # todo ugly
+                reverseOrder = True
+            if sortKey == SortByWhat.NAME.value:
+                data.sort(key=lambda x: pathlib.Path(os.path.splitext(
+                    pathlib.Path(x[sortKey]).name)[0]),
+                    reverse=reverseOrder)
+            else:
+                data.sort(key=lambda x: x[sortKey], reverse=reverseOrder)
+            
+            duration = time.time() - start_time
+            print(f"\nFound {len(data)} element[s] in {'%.3f'%duration} seconds")
         return data
