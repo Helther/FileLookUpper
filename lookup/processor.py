@@ -21,6 +21,10 @@ class SortByWhat(Enum):
     SIZE = 2
     MAX = 3
 
+sortNames = {SortByWhat.NAME.value: "Name",
+             SortByWhat.TYPE.value: "Type",
+             SortByWhat.SIZE.value: "Size"}
+
 
 class sizeScales(Enum):
     B = 0
