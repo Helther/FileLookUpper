@@ -21,7 +21,7 @@ import argparse
 import os.path
 
 programName = "FilelookUpper"
-programVersion = "0.2"
+programVersion = "0.7"
 
 class TableColumns(Enum):
     Num = 0,
@@ -112,7 +112,7 @@ def displayTable(data, sizeScale, maxTableRowCount=100):
         print("wrong data dimensions")
         return
     # table title and separator and row separator
-    print(f"\n{programName} {programVersion} Results Table")
+    print(f"\n{programName} v{programVersion} Results Table")
     tableColumnsSize = 0
     rowSeparatorStr = ""
     for k, nameSize in tableColumns.items():
@@ -232,8 +232,11 @@ def main():
     else:
         looker = processor.FileProc(reqs)
     resultData = looker.process()
-    displayTable(resultData, reqs["sizeScale"],
-                 maxTableRowCount=reqs["maxElemNumber"])
+    if looker.interrupted:
+        print("\nProcedure was manually cancelled")
+    else:
+        displayTable(resultData, reqs["sizeScale"],
+                     maxTableRowCount=reqs["maxElemNumber"])
 
 
 if __name__ == '__main__':

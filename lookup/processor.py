@@ -6,11 +6,11 @@ import time
 import sys
 
 # todo global
-#  test sort by namefor dirs
-#  add scanned elems count update
-#  add keybr interrupt handle
-#  use sorted container for data without additional sort
-#  add test decriptions
+#  use distutils in setup to creat proper script
+#  add changeLog file and redo readme
+#  add cython compiled version
+#  add bash and shell launch scripts
+
 
 MAX_THREAD_COUNT = 8
 
@@ -59,22 +59,40 @@ class ProgressBar(object):
     """
     class for displaying udpating progress bar
     """
-    def __init__(self, maxIndex):
-        self.maxIndex = maxIndex
+    def __init__(self):
+        self.maxIndex = 0
         self.currentIndex = 0
+        self.currentProgress = ''
+        self.processedElemCount = 0
 
-    @staticmethod
-    def init():
-        sys.stdout.write('\r')
-        sys.stdout.write(ProgressBar.getProgressStr(0))
-        sys.stdout.flush()
+    def init(self, maxIndex):
+        self.maxIndex = maxIndex
+        self.currentProgress = ProgressBar.getProgressStr(0)
+        self.printCurrentProgress()
 
-    def update(self):
+    def updateProgressBar(self):
         self.currentIndex += 1
-        sys.stdout.write('\r')
-        sys.stdout.write(self.getProgressStr(self.currentIndex / self.maxIndex))
+        self.currentProgress = self.getProgressStr(self.currentIndex / self.maxIndex)
+        self.printCurrentProgress()
+        sys.stdout.write(self.getCurrentElemCountStr())
         sys.stdout.flush()
         time.sleep(0.1)
+
+    def updateProcessedElems(self):
+        self.processedElemCount += 1
+        updatePeriod = 100
+        if self.processedElemCount % updatePeriod == 0:
+            self.printCurrentProgress()
+            sys.stdout.write(self.getCurrentElemCountStr())
+            sys.stdout.flush()
+
+    def printCurrentProgress(self):
+        sys.stdout.write('\r')
+        sys.stdout.write(self.currentProgress)
+
+
+    def getCurrentElemCountStr(self):
+        return f" | Elements processed total: {self.processedElemCount}"
 
     @staticmethod
     def getProgressStr(index):
@@ -84,6 +102,8 @@ class ProgressBar(object):
 class ProcessorBase(object):
     def __init__(self, reqs=None):
         self.reqs = DefaultReqs.copy() if reqs is None else reqs
+        self.interrupted = False
+        self.progress = ProgressBar()
 
     def process(self):
         pass
@@ -130,10 +150,13 @@ class DirProc(ProcessorBase):
         :return: None
         """
         for file in Dir.iterdir():
+            if self.interrupted:
+                return
             if file.is_dir():
                 self.dirScan(Sum, Dir / file.name)
             else:
                 Sum[0] += file.stat().st_size
+                self.progress.updateProcessedElems()
 
     def dirScanMT(self, data, rootDir):
         """
@@ -145,9 +168,12 @@ class DirProc(ProcessorBase):
         Sum = [0]
         try:
             self.dirScan(Sum, rootDir)
-        except OSError as e:
-            print(f"\nError: {sys.exc_info()[1]}\n"
-                 "This element won't be included in the results")
+        except BaseException as e:
+            if type(e) == OSError:
+                print(f"\nError: {sys.exc_info()[1]}\n"
+                    "This element won't be included in the results")
+            if type(e) == KeyboardInterrupt:
+                self.interrupted = True
             return
         scaledSize = int(Sum[0] / sizeScalesVals[self.reqs["sizeScale"]])
         if self.applyFilter(Size=scaledSize):
@@ -171,12 +197,11 @@ class DirProc(ProcessorBase):
         threadPool = []
         start_time = time.time()
         index = 0
-        progress = ProgressBar(len(rootDirNames))
-        ProgressBar.init()
+        self.progress.init(len(rootDirNames))
         while index < len(rootDirNames):
             if not self.applyFilter(Name=rootDirNames[index].name):
                 index += 1
-                progress.update()
+                self.progress.updateProgressBar()
                 continue
             threadCount = 0
             while threadCount < MAX_THREAD_COUNT:
@@ -185,15 +210,21 @@ class DirProc(ProcessorBase):
                         target=self.dirScanMT, args=(data, rootDirNames[index])))
                     threadCount += 1
                 else:
-                    progress.update()
+                    self.progress.updateProgressBar()
                 index += 1
                 if index >= len(rootDirNames) - 1:
                     break
+            if self.interrupted:  # cancel if keybr interrupted
+                return []
             for thread in threadPool:
                 thread.start()
-            for thread in threadPool:
-                thread.join()
-                progress.update()
+            try:
+                for thread in threadPool:
+                    thread.join()
+                    self.progress.updateProgressBar()
+            except KeyboardInterrupt as e:
+                self.interrupted = True
+                return
             threadPool.clear()
         # todo: reformat this sorting and make custom predicats
         sortKey = int(self.reqs["sortBy"])
@@ -225,9 +256,12 @@ class FileProc(ProcessorBase):
                              int(sizeScalesVals[self.reqs["sizeScale"]]))
             if self.applyFilter(fileName, scaledSize, fileExt):
                 data.append((fileName, fileExt, scaledSize))
-        except OSError as e:
-            print(f"\nError: {sys.exc_info()[1]}\n"
-                "This element won't be included in the results")
+        except BaseException as e:
+            if type(e) == OSError:
+                print(f"\nError: {sys.exc_info()[1]}\n"
+                      "This element won't be included in the results")
+            if type(e) == KeyboardInterrupt:
+                self.interrupted = True
             return
 
     def fileScanMT(self, data, rootDir):
@@ -246,9 +280,9 @@ class FileProc(ProcessorBase):
                 rootDirs.append(rDir)
             else:
                 self.proccesFile(data, rDir)
+                self.progress.updateProcessedElems()
 
-        progress = ProgressBar(len(rootDirs))
-        ProgressBar.init()
+        self.progress.init(len(rootDirs))
         while index < len(rootDirs):
             for i in range(0, MAX_THREAD_COUNT):
                 threadPool.append(Thread(name=f"thread_{i}",
@@ -256,11 +290,17 @@ class FileProc(ProcessorBase):
                 index += 1
                 if index >= len(rootDirs) - 1:
                     break
+            if self.interrupted:  # cancel if keybr interrupted
+                break
             for thread in threadPool:
                 thread.start()
-            for thread in threadPool:
-                thread.join()
-                progress.update()
+            try:
+                for thread in threadPool:
+                    thread.join()
+                    self.progress.updateProgressBar()
+            except KeyboardInterrupt as e:
+                self.interrupted = True
+                return
             threadPool.clear()
 
     def fileScan(self, data, Dir):
@@ -273,14 +313,20 @@ class FileProc(ProcessorBase):
         """
         try:
             for file in Dir.iterdir():
-                    if file.is_dir():
-                        self.fileScan(data, Dir / file.name)
-                    else:
-                        self.proccesFile(data, file)
-        except OSError as e:
-            print(f"\nError: {sys.exc_info()[1]}\n"
-                 "All elements and it's sub elements won't "
-                  "be included in the results")
+                if self.interrupted:
+                    return
+                if file.is_dir():
+                    self.fileScan(data, Dir / file.name)
+                else:
+                    self.proccesFile(data, file)
+                    self.progress.updateProcessedElems()
+        except BaseException as e:
+            if type(e) == OSError:
+                print(f"\nError: {sys.exc_info()[1]}\n"
+                      "All elements and it's sub elements won't "
+                      "be included in the results")
+            if type(e) == KeyboardInterrupt:
+                self.interrupted = True
             return
 
     def process(self):
@@ -293,6 +339,8 @@ class FileProc(ProcessorBase):
         rootP = pathlib.Path(self.reqs["rootDir"])
         start_time = time.time()
         self.fileScanMT(data, rootP)
+        if self.interrupted:  # cancel if keybr interrupted
+            return []
         if data:
             sortKey = int(self.reqs["sortBy"])
             reverseOrder = False
