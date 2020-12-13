@@ -2,7 +2,7 @@ from unittest import TestCase
 import os
 from shutil import rmtree
 import pathlib
-from lookup.processor import ProcessorBase, DirProc, FileProc, SortByWhat, \
+from lookupper.processor import ProcessorBase, DirProc, FileProc, SortByWhat, \
     DefaultReqs, sizeScales, sizeScalesVals, sizeScaleNames, sortNames
 
 # static consts for setup

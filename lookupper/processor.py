@@ -5,15 +5,6 @@ from threading import Thread
 import time
 import sys
 
-# todo global
-#  use distutils in setup to creat proper script
-#  add changeLog file and redo readme
-#  add cython compiled version
-#  add bash and shell launch scripts
-
-
-MAX_THREAD_COUNT = 8
-
 
 class SortByWhat(Enum):
     NAME = 0
@@ -52,7 +43,8 @@ DefaultReqs = {"sortBy": SortByWhat.SIZE.value,
                "nameFilter": "",
                "typeFilter": "",
                "rootDir": '.',
-               "maxElemNumber": 100}
+               "maxElemNumber": 100,
+               "maxThreadCount": 8}
 
 
 class ProgressBar(object):
@@ -204,7 +196,7 @@ class DirProc(ProcessorBase):
                 self.progress.updateProgressBar()
                 continue
             threadCount = 0
-            while threadCount < MAX_THREAD_COUNT:
+            while threadCount < self.reqs["maxThreadCount"]:
                 if self.applyFilter(Name=rootDirNames[index].name):
                     threadPool.append(Thread(name=f"thread_{threadCount}",
                         target=self.dirScanMT, args=(data, rootDirNames[index])))
@@ -284,7 +276,7 @@ class FileProc(ProcessorBase):
 
         self.progress.init(len(rootDirs))
         while index < len(rootDirs):
-            for i in range(0, MAX_THREAD_COUNT):
+            for i in range(0, self.reqs["maxThreadCount"]):
                 threadPool.append(Thread(name=f"thread_{i}",
                     target=self.fileScan, args=(data, rootDirs[index])))
                 index += 1

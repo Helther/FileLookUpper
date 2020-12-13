@@ -1,9 +1,9 @@
-import setuptools
-from lookup.__main__ import programVersion
+from setuptools import setup, find_packages
+from lookupper.__main__ import programVersion
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-setuptools.setup(
+setup(
     name="FileLookUpper",
     version=programVersion,
     author="Gusev Anton",
@@ -12,7 +12,10 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/Helther/FileLookUpper.git",
-    packages=setuptools.find_packages(),
+    packages=find_packages(),
+    scripts=[
+        "lookupper/__main__.py"
+    ],
     classifiers=[
         "Programming Language :: Python :: 3",
         "LICENSE :: OSI APPROVED :: APACHE SOFTWARE LICENSE",

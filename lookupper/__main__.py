@@ -16,12 +16,12 @@
 ################
 
 from enum import Enum
-from lookup import processor
+from lookupper import processor
 import argparse
 import os.path
 
 programName = "FilelookUpper"
-programVersion = "0.7"
+programVersion = "0.8"
 
 class TableColumns(Enum):
     Num = 0,
@@ -45,6 +45,9 @@ FileTableColSizes = {TableColumns.Num: ("№", ColSizeVals.Num.value),
                      TableColumns.Type: ("Type", ColSizeVals.Type.value),
                      TableColumns.Size: ("Size", ColSizeVals.Size.value)}
 
+global NameColSizeArg
+MaxThreadCountArg = 20
+MaxColumnSizeArg = 1 << 10
 
 def elidePath(Path, extraSpace):
     result = ''
@@ -74,7 +77,7 @@ def elideColumn(value, columnMaxSize, elideRight):
     spareSpace = columnMaxSize - len(value) - 1  # space for text excluding ws
     if spareSpace < 0:
         if elideRight:
-            elidedVal = value[:spareSpace - len(continChar) - 1]
+            elidedVal = value[:spareSpace - len(continChar)]
             return "| {}{} {}".format(elidedVal, continChar, ' ' *
                                    max(0, spareSpace))
         else:
@@ -100,6 +103,7 @@ def displayTable(data, sizeScale, maxTableRowCount=100):
     :param maxTableRowCount:
     :param sizeScale: enum val
     """
+    global NameColSizeArg
     if len(data) == 0:
         print("No elements were found")
         return
@@ -116,8 +120,12 @@ def displayTable(data, sizeScale, maxTableRowCount=100):
     tableColumnsSize = 0
     rowSeparatorStr = ""
     for k, nameSize in tableColumns.items():
-        tableColumnsSize += len(nameSize[0]) + nameSize[1]
-        rowSeparatorStr += "+{}".format('-' * (nameSize[1] + 1))
+        if nameSize[0] == DirTableColSizes[TableColumns.Name][0]:
+            tableColumnsSize += len(nameSize[0]) + NameColSizeArg
+            rowSeparatorStr += "+{}".format('-' * (NameColSizeArg + 1))
+        else:
+            tableColumnsSize += len(nameSize[0]) + nameSize[1]
+            rowSeparatorStr += "+{}".format('-' * (nameSize[1] + 1))
     print('=' * tableColumnsSize)
     print(rowSeparatorStr + '+/')
     # headers
@@ -128,6 +136,9 @@ def displayTable(data, sizeScale, maxTableRowCount=100):
                           f"{processor.sizeScaleNames[sizeScale]}"
             headersStr += "| {}{}".format(colSizeName, ' ' * (nameSize[1] -
                                                               len(colSizeName)))
+        elif nameSize[0] == DirTableColSizes[TableColumns.Name][0]:
+            headersStr += "| {}{}".format(nameSize[0], ' ' * (NameColSizeArg -
+                                                              len(nameSize[0])))
         else:
             headersStr += "| {}{}".format(nameSize[0], ' ' * (nameSize[1] -
                                                               len(nameSize[0])))
@@ -145,7 +156,7 @@ def displayTable(data, sizeScale, maxTableRowCount=100):
                 continue
             currentEntry = data[row][col]
             if nameSize[0] == DirTableColSizes[TableColumns.Name][0]:
-                elidedRowName = elideColumn(currentEntry, nameSize[1], False)
+                elidedRowName = elideColumn(currentEntry, NameColSizeArg, False)
                 rowStr += elidedRowName
                 col += 1
                 continue
@@ -165,8 +176,9 @@ def parseArgs():
     Handles argument parsing
     :return: map of user defined params, bool
     """
+    global NameColSizeArg
     parser = argparse.ArgumentParser()
-    parser.prog = "lookup"
+    parser.prog = "lookupper"
     exclusiveGroup = parser.add_mutually_exclusive_group()
     exclusiveGroup.add_argument("-d", "--directory", action="store_true",
                                 help="process directories instead of files")
@@ -194,6 +206,11 @@ def parseArgs():
                         choices=list(range(0, processor.sizeScales.MAX.value)),
                         help="choose how to scale elements sizes: 0 - Bytes, "
                              "1 - KBytes, 2 - MBytes, 3 - GBytes. Default is Mbytes")
+    parser.add_argument("-u", "--threadCount", action="store", type=int, nargs=1,
+                        help="specify the maximum number of working threads")
+    parser.add_argument("-i", "--nameSize", action="store", type=int, nargs=1,
+                         help="specify the width of element "
+                                                    "name column in characters")
     args = parser.parse_args()
     reqs = processor.DefaultReqs.copy()
     isDir = False
@@ -222,6 +239,19 @@ def parseArgs():
         reqs["maxElemNumber"] = args.elemMaxNumber[0]
     if args.sizeScale:
         reqs["sizeScale"] = args.sizeScale[0]
+    if args.threadCount:
+        if 1 > args.threadCount[0] or args.threadCount[0] < MaxThreadCountArg + 1:
+            parser.error(f"not valid argument value 1 <= u <= {MaxThreadCountArg + 1}")
+        reqs["maxThreadCount"] = args.threadCount[0]
+    if args.nameSize:
+        if len(DirTableColSizes[TableColumns.Name][0]) > args.nameSize[0] or \
+                             args.nameSize[0] > MaxColumnSizeArg:
+            parser.error(f"not valid argument value: "
+                         f"{len(DirTableColSizes[TableColumns.Name][0])} <= i <= "
+                         f"{MaxColumnSizeArg}")
+        NameColSizeArg = args.nameSize[0]
+    else:
+        NameColSizeArg = ColSizeVals.Name.value
     return reqs, isDir
 
 
